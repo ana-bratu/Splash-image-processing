@@ -12,9 +12,10 @@ import math
 import sys
 import copy
 import pandas as pd
-from skimage import io
-from scipy.interpolate import UnivariateSpline
+from skimage import io, img_as_float, exposure
+from scipy.interpolate import UnivariateSpline, CubicSpline, RectBivariateSpline
 from scipy.ndimage import uniform_filter
+
 
 # General system functions
 import glob
@@ -28,6 +29,7 @@ import sys
 # Draw a line on one image of the stack starting on the edge of the target and alignet with the trajectpry of the jet Store the coordinates
 
 global length 
+
 def draw_line(event, x, y, flags, param):
     global line_coordinates 
     
@@ -155,8 +157,6 @@ def mouse_callback(event, x, y, flags, param):
         selected_points.append((x, y))
         cv2.circle(to_use_image, (x, y), 1, (0, 0, 255), -1)
         cv2.imshow('Select Points', to_use_image)
-
-
         
 def average_stack(TopStack, count):
 
@@ -175,7 +175,6 @@ def average_stack(TopStack, count):
         all_images = all_images/(count+1)
         # print(np.max(file))
     return all_images
-
 
 def extract_spline(image):
     global selected_points, display_image
@@ -234,7 +233,6 @@ def extract_spline(image):
     plt.title('Fitting a Spline to an Edge in an Image')
     plt.show()
     return spline, xdata, y_new
-   
     
 def get_edge_from_spline(reslice):
     image = np.array(reslice, dtype=np.uint16)
@@ -273,8 +271,6 @@ def get_edge_from_spline(reslice):
     # plt.legend()
     plt.title('Edge semi-automated detection')
     plt.show()
-
-
     
 def compute_acceleration(reslice):
     image = np.array(reslice, dtype=np.uint16)
@@ -308,18 +304,10 @@ def compute_acceleration(reslice):
     plt.legend()
     plt.grid(True)
     plt.show()
-    
 
 def subtract_blur(image, kernel_size):
     blurred_image = uniform_filter(image, size=kernel_size)
     return blurred_image
-
-
-from skimage import img_as_float
-from skimage import exposure
-
-
-
 
 def plot_img_and_hist(image, axes, bins=65536):
     """Plot an image along with its histogram and cumulative histogram."""
@@ -345,7 +333,6 @@ def plot_img_and_hist(image, axes, bins=65536):
 
     return ax_img, ax_hist, ax_cdf
 
-from scipy.interpolate import RectBivariateSpline
 
 def convolve_with_derivative_of_gaussian(image, kernel_size=15, sigma=3):
     """
@@ -400,9 +387,11 @@ def sobel_y(image):
     sobel_y = np.uint8(sobel_y)
     return sobel_y
 
-
-
 def resample_image(image, new_shape):
+    
+    
+    
+    
     """
     Resamples an image by interpolation using spline fits.
 
@@ -435,8 +424,8 @@ def resample_image(image, new_shape):
 # Specify the folder path containing TIFF images
 folder_path = r"d:\Users\Ana\Desktop\experiments\experiments internship\5000fps\experiments\60degrees\H103mm_d2.7mm\SaveData"
 
-from scipy.interpolate import CubicSpline
-from scipy.interpolate import UnivariateSpline
+
+
 # Specify experiment details
 scale_pixels = 42.67
 scale_mm = 2.7
