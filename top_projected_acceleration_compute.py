@@ -15,8 +15,7 @@ import pandas as pd
 from skimage import io, img_as_float, exposure
 from scipy.interpolate import UnivariateSpline, CubicSpline, RectBivariateSpline
 from scipy.ndimage import uniform_filter
-
-
+from mpl_toolkits.mplot3d import Axes3D
 # General system functions
 import glob
 import os
@@ -61,7 +60,7 @@ def read_tiff_images_cv2(TopStack, line_coordinates):
     reslice_jet = []
     reslice_splash = []
     # Iterate through images
-    for file in TopStack[0:40]:
+    for file in TopStack[0:15]:
         # Check if the file is a TIFF image
         # if file.lower().endswith(".tiff") or file.lower().endswith(".tif"):
         # file_path = os.path.join(folder_path, file)
@@ -349,6 +348,7 @@ def convolve_with_derivative_of_gaussian(image, kernel_size=15, sigma=3):
     # Convert the image to grayscale if it's RGB
     if len(image.shape) == 3 and image.shape[2] == 3:
         image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    
 
     # Create the 1D Gaussian kernel
     gaussian_kernel = cv2.getGaussianKernel(kernel_size, sigma)
@@ -358,14 +358,15 @@ def convolve_with_derivative_of_gaussian(image, kernel_size=15, sigma=3):
     
     # gaussian_derivative_kernel = gaussian_kernel[:, 0]
 
-
+    # print("max image=", np.max(image))
     # Apply the 1D convolution along each column with the derivative of Gaussian kernel
-    derivative_image = np.zeros_like(image, dtype=np.float32)
+    derivative_image = np.zeros_like(image, dtype=np.float64)
     for col in range(image.shape[1]):
-        column_signal = image[:, col].astype(np.float32)  # Extract column signal
+        column_signal = image[:, col].astype(np.float64)  # Extract column signal
         derivative_column = np.convolve(column_signal, gaussian_derivative_kernel, mode='same')  # Perform 1D convolution
         derivative_image[:, col] = derivative_column
-
+    # print("max deriv image=", np.max(derivative_image))
+    # print("min deriv image=", np.min(derivative_image))
     # Convert the image to uint8 type
     # derivative_image = derivative_image.astype(np.uint8)
 
@@ -383,11 +384,13 @@ def sobel_y(image):
         numpy.ndarray: Image after applying Sobel operator along y-axis.
     """
     sobel_y = cv2.Sobel(image, cv2.CV_64F, 0, 1, ksize=3)
-    sobel_y = np.abs(sobel_y)
-    sobel_y = np.uint8(sobel_y)
+    # sobel_y = np.abs(sobel_y)
+    # sobel_y = np.uint8(sobel_y)
     return sobel_y
 
 def resample_image(image, new_shape):
+    
+
     
     
     
@@ -421,6 +424,32 @@ def resample_image(image, new_shape):
     resampled_image = spline(new_y, new_x)
 
     return resampled_image    
+
+def plot_max_pixel_coords(work_image, plot_image):
+    """
+    Plot the coordinates of pixels with maximum value in each column of the image.
+    
+    Args:
+    - image: NumPy array representing the grayscale image
+    
+    Returns:
+    None (displays the plot)
+    """
+    # Find maximum pixel coordinates for each column
+    max_pixel_coords = []
+    for col in range(work_image.shape[1]):
+        max_pixel_row = np.argmax(work_image[:, col])  # Find index of maximum pixel value in the column
+        max_pixel_coords.append((col, max_pixel_row))  # Append coordinates to the list
+
+    # Plot the coordinates on the image
+    plt.figure()
+    plt.imshow(plot_image, cmap='gray')
+    plt.scatter(*zip(*max_pixel_coords), color='red', s=5)  # Unzip coordinates and plot as scatter points
+    plt.title('Pixels with Maximum Value in Each Column')
+    plt.xlabel('Column')
+    plt.ylabel('Row')
+    plt.show()
+    
 # Specify the folder path containing TIFF images
 folder_path = r"d:\Users\Ana\Desktop\experiments\experiments internship\5000fps\experiments\60degrees\H103mm_d2.7mm\SaveData"
 
@@ -431,7 +460,7 @@ scale_pixels = 42.67
 scale_mm = 2.7
 ideal_diam = 2.7
 fps = 5000
-length = 2*scale_pixels
+length = 40 #maybe find something else
 angle = 60
 height = 103
 
@@ -449,146 +478,95 @@ for s in StackList[0:1]:
     # for file in TopStack: file = average_stack(TopStack, count)
     line_coordinates = []
     extract_line_coord(cv2.normalize(TopStack[20], dst=None, alpha=0, beta=65535, norm_type=cv2.NORM_MINMAX))
-    print(line_coordinates)
-    print(s)
+    # print(line_coordinates)
+    # print(s)
     
-    # files = os.listdir(folder_path)
-    # file_path = os.path.join(folder_path, files[20])
-    # image = cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
- 
 
-        
-
-    # Call the function to read TIFF images, draw the line, and extract pixels along that line
     list_of_lists_cv2, reslice = read_tiff_images_cv2(TopStack, line_coordinates)    
     reslice_jet, reslice_splash = reslice
     
     reslice_jet =  np.array(reslice_jet, dtype=np.uint16)
     
     
-    plt.figure(figsize=(8, 6))  # Create a new figure with specified size
+    # plt.figure(figsize=(8, 6))  # Create a new figure with specified size
 
-    plt.imshow(reslice_jet, cmap='gray')  # Display the result
-    plt.show()
+    # plt.imshow(reslice_jet, cmap='gray')  # Display the result
+    # plt.title("Reslice Jet")
+    # plt.show()
     
     
 
     img = reslice_jet
     # Resample image to double size
-    new_shape = (img.shape[0], img.shape[1]//2)
+    resample_ratio = 1
+    new_shape = (img.shape[0]*resample_ratio, img.shape[1]*resample_ratio)
     resampled_img = resample_image(img, new_shape)
-     
-    plt.show()
+    resampled_img  = img
+    ks = 15 #kernel_size
+    s = 0.01 #sigma
+    derivative_image =convolve_with_derivative_of_gaussian(resampled_img, ks, s)
+
+
+    # Apply Sobel operator along y-axis
+    sobel_image_y = sobel_y(derivative_image)
     
-    
-    derivative_image =convolve_with_derivative_of_gaussian(resampled_img, kernel_size=10, sigma=3)
-
-
-    plt.imshow(derivative_image, cmap='gray')  # Display the result
-    plt.show()
-    gray = derivative_image
-
-
-    # Store edge points
-    edge_points = []
-
-    # Iterate through columns
-    for x in range(gray.shape[1]):
-        # Iterate through rows
-        for y in range(gray.shape[0]):
-            # Check if pixel value exceeds threshold
-            if gray[y, x] <-1:
-                # Store coordinates of edge pixel
-                edge_points.append((x, y))
-                break
-        # Break the loop once the edge is found (optional)
-
-
-    # Convert edge points to numpy array for plotting
-    edge_points = np.array(edge_points)
-
-    # Plot the grayscale image
-    plt.imshow(resampled_img, cmap='gray')
-
-    # Plot the edge points
-    plt.scatter(edge_points[:, 0], edge_points[:, 1], c='lime', s=0.1)
-
-
-
-
-    x,y = edge_points[:, 0], edge_points[:, 1]
-
-    spl = CubicSpline(x, y)
-    X = np.linspace(0, len(y), 100)
-    Y = spl(X)
-
-
-
-    plt.plot(X,Y) 
-
-
-
-
-    # very smooth...maybe too smooth?
-    
-    spline = UnivariateSpline(x, y, s=0.1)
-    X1 = np.linspace(0, len(y), 100)
-    Y1 = spline(X)
-    plt.plot(X1, Y1)
-    plt.show()
-
     # Plot the images
-    plt.figure(figsize=(10, 5))
-    plt.scatter(x,y)
-    plt.plot(X,Y, label = "piecewise polynomial")
-    plt.plot(X1, Y1, label = "UnivariateSpline")
-
-    spline = UnivariateSpline(x, y, s=1)
-    X1 = np.linspace(0, len(y), 100)
-    Y1 = spline(X)
-    plt.plot(X1, Y1)
-
-    spline = UnivariateSpline(x, y, s=10)
-    X1 = np.linspace(0, len(y), 100)
-    Y1 = spline(X)
-    plt.plot(X1, Y1)
-
-    spline = UnivariateSpline(x, y, s=100)
-    X1 = np.linspace(0, len(y), 100)
-    Y1 = spline(X)
-    plt.plot(X1, Y1)
-
-    spline = UnivariateSpline(x, y, s=1000)
-    X1 = np.linspace(0, len(y), 100)
-    Y1 = spline(X)
-    plt.plot(X1, Y1)
-
-    spline = UnivariateSpline(x, y, s=10000)
-    X1 = np.linspace(0, len(y), 100)
-    Y1 = spline(X)
-    plt.plot(X1, Y1)
-    plt.legend(["data points","piecewise polynomial","UnivariateSpline s=0.1","UnivariateSpline s=1","UnivariateSpline s=10","UnivariateSpline s=100","UnivariateSpline s=1000","UnivariateSpline s=10000"])
-    plt.show()
+    # plt.figure(figsize=(10, 5))
+    
+    # plt.subplot(3,1, 1)
+    # plt.imshow(img, cmap='gray')
+    # plt.title('Original Image')
+    # plt.axis('off')
+    
+    # plt.subplot(3,1, 2)
+    # plt.imshow(derivative_image, cmap='gray')
+    # plt.title('Convolution with a Derivative of Gaussian')
+    # plt.axis('off')
+    
+    # plt.subplot(3,1, 3)
+    # plt.imshow(sobel_image_y, cmap='gray')
+    # plt.title('Sobel Y Image')
+    # plt.axis('off')
+    
+    # plt.tight_layout()
+    # plt.show()
 
 
-    # get_edge_from_spline(reslice_jet)
-    # get_edge_from_spline(reslice_splash)
-    # # compute_acceleration(reslice_jet)
-    # compute_acceleration(reslice_splash)
+    
+    # gray =  sobel_image_y
+     
+    # # Create meshgrid
+    # x = np.arange(0, gray.shape[1], 1)
+    # y = np.arange(0, gray.shape[0], 1)
+    # x, y = np.meshgrid(x, y)
+    
+    # # Plot the surface
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
+    # surface = ax.plot_surface(x, y, gray, cmap='gray')
+    
+    # Show plot
+    # plt.show()  
+    
+    plot_max_pixel_coords(sobel_image_y, reslice_jet)
+    
+    
+    # SPLASH
+    img =  np.array(reslice_splash, dtype=np.uint16)
+ 
+    # Resample image to double size
+    resample_ratio = 1
+    new_shape = (img.shape[0]*resample_ratio, img.shape[1]*resample_ratio)
+    resampled_img = resample_image(img, new_shape)
+    resampled_img  = img
+    ks = 15 #kernel_size
+    s = 0.01 #sigma
+    derivative_image =convolve_with_derivative_of_gaussian(resampled_img, ks, s)
 
-    # print("Acceleration jet=",acc_jet, "mm/s")
 
-    # image = np.array(reslice_splash, dtype=np.uint16)
-    # line_coordinates = []
-    # extract_line_coord(cv2.normalize(image, dst=None, alpha=0, beta=65535, norm_type=cv2.NORM_MINMAX))
-
-    # acc_splash = extract_acc(line_coordinates)
-    # print("Acceleration splash=", acc_splash, "mm/s")
-
-
-
-    # jet_acc.append(velocity_jet)
-    # splash_acc.append(acc_splash)
+    # Apply Sobel operator along y-axis
+    sobel_image_y = sobel_y(derivative_image)
+    plot_max_pixel_coords(sobel_image_y, reslice_splash)
 
     # SD.loc[s, 'angle[degrees]'] = angle
     # SD.loc[s, 'IdealDiam[mm]'] = ideal_diam
