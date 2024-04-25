@@ -449,6 +449,8 @@ def plot_max_pixel_coords(work_image, plot_image):
     plt.xlabel('Column')
     plt.ylabel('Row')
     plt.show()
+    x_coords, y_coords = zip(*max_pixel_coords)
+    return x_coords, y_coords
     
 # Specify the folder path containing TIFF images
 folder_path = r"d:\Users\Ana\Desktop\experiments\experiments internship\5000fps\experiments\60degrees\H103mm_d2.7mm\SaveData"
@@ -566,7 +568,79 @@ for s in StackList[0:1]:
 
     # Apply Sobel operator along y-axis
     sobel_image_y = sobel_y(derivative_image)
-    plot_max_pixel_coords(sobel_image_y, reslice_splash)
+    x, y  = plot_max_pixel_coords(sobel_image_y, reslice_splash)
+    # very smooth...maybe too smooth?
+    
+    spline = UnivariateSpline(x, y, s=0.1)
+    X1 = np.linspace(0, len(y), 100)
+    Y1 = spline(X1)
+    plt.plot(X1, Y1)
+    plt.show()
+    
+    # Plot the images
+    plt.figure(figsize=(10, 5))
+    plt.scatter(x,y)
+    plt.plot(X1, Y1, label = "UnivariateSpline")
+    
+    spline = UnivariateSpline(x, y, s=1)
+    X1 = np.linspace(0, len(y), 100)
+    Y1 = spline(X1)
+    plt.plot(X1, Y1)
+    
+    spline = UnivariateSpline(x, y, s=10)
+    X1 = np.linspace(0, len(y), 100)
+    Y1 = spline(X1)
+    plt.plot(X1, Y1)
+    
+    spline = UnivariateSpline(x, y, s=100)
+    X1 = np.linspace(0, len(y), 100)
+    Y1 = spline(X1)
+    plt.plot(X1, Y1)
+    
+    spline = UnivariateSpline(x, y, s=1000)
+    X1 = np.linspace(0, len(y), 100)
+    Y1 = spline(X1)
+    plt.plot(X1, Y1)
+    
+    spline = UnivariateSpline(x, y, s=10000)
+    X1 = np.linspace(0, len(y), 100)
+    Y1 = spline(X1)
+    plt.plot(X1, Y1)
+    plt.legend(["data points","piecewise polynomial","UnivariateSpline s=0.1","UnivariateSpline s=1","UnivariateSpline s=10","UnivariateSpline s=100","UnivariateSpline s=1000","UnivariateSpline s=10000"])
+    plt.show()
+    
+    
+    
+    
+    x = np.array(x)
+    y = np.array(y)
+    
+    # Fit the points with a second-degree polynomial
+    coefficients = np.polyfit(x, y, 2)  # Fit a second-degree polynomial (quadratic)
+    
+    # Generate the polynomial function using the coefficients
+    poly_function = np.poly1d(coefficients)
+    
+    # Generate x values for plotting the polynomial curve
+    x_values = np.linspace(min(x), max(x), 100)
+    
+    # Evaluate the polynomial function at the x values
+    y_values = poly_function(x_values)
+    
+    # Plot the points
+    plt.scatter(x, y, label='Data Points')
+    
+    # Plot the polynomial curve
+    plt.plot(x_values, y_values, color='red', label='Polynomial Fit')
+    
+    # Add labels and legend
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.title('Second Degree Polynomial Fit')
+    plt.legend()
+    
+    # Show plot
+    plt.show()
 
     # SD.loc[s, 'angle[degrees]'] = angle
     # SD.loc[s, 'IdealDiam[mm]'] = ideal_diam
