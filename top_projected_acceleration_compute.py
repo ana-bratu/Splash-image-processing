@@ -581,7 +581,7 @@ StackList = SD.index
 jet_acc = []
 splash_acc = []
 Circularity = []
-for s in StackList[0:3]:
+for s in StackList[7:8]:
 
     _, TopStack = cv2.imreadmulti(folder_path + '\\Top_' + s + '.tif', [], -1 )
     # count = 6
@@ -611,7 +611,7 @@ for s in StackList[0:3]:
 
     # Apply Sobel operator along y-axis
     sobel_image_y = sobel_y(derivative_image)
-    x, y  = plot_max_pixel_coords(sobel_image_y, reslice_jet)
+    x, y  = plot_max_pixel_coords(sobel_image_y, reslice_jet, 1)
 
     x = np.array(x)
     y = np.array(y)
@@ -627,7 +627,7 @@ for s in StackList[0:3]:
     
     # Evaluate the polynomial function at the x values
     y_values_jet = poly_function_jet(x_values_jet)
-    show = 0
+    show = 1
     if show ==1:
         # Plot the points
         plt.scatter(x, y, label='Data Points')
@@ -662,7 +662,7 @@ for s in StackList[0:3]:
     
     # Apply Sobel operator along y-axis
     sobel_image_y = sobel_y(derivative_image)
-    x, y  = plot_max_pixel_coords(sobel_image_y, reslice_splash)
+    x, y  = plot_max_pixel_coords(sobel_image_y, reslice_splash, 1)
 
     x = np.array(x)
     y = np.array(y)
@@ -678,7 +678,7 @@ for s in StackList[0:3]:
     
     # Evaluate the polynomial function at the x values
     y_values_splash = poly_function_splash(x_values_splash)
-    show = 0
+    show = 1
     if show ==1:
         # Plot the points
         plt.scatter(x, y, label='Data Points')
@@ -696,7 +696,7 @@ for s in StackList[0:3]:
         plt.show()
     
     
-    x_values_plot, derivative_poly_function_1, derivative_poly_function_2 = plot_velocity(x_values_jet, y_values_jet, x_values_splash, y_values_splash, 0)
+    x_values_plot, derivative_poly_function_1, derivative_poly_function_2 = plot_velocity(x_values_jet, y_values_jet, x_values_splash, y_values_splash, 1)
     acc_jet, acc_splash =  plot_acceleration(x_values_plot, derivative_poly_function_1, derivative_poly_function_2, 1)
     
     # SD.loc[s, 'angle[degrees]'] = angle
