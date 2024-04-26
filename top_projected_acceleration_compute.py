@@ -16,6 +16,8 @@ from skimage import io, img_as_float, exposure
 from scipy.interpolate import UnivariateSpline, CubicSpline, RectBivariateSpline
 from scipy.ndimage import uniform_filter
 from mpl_toolkits.mplot3d import Axes3D
+import time
+
 # General system functions
 import glob
 import os
@@ -425,7 +427,7 @@ def resample_image(image, new_shape):
 
     return resampled_image    
 
-def plot_max_pixel_coords(work_image, plot_image):
+def plot_max_pixel_coords(work_image, plot_image, show = 0):
     """
     Plot the coordinates of pixels with maximum value in each column of the image.
     
@@ -440,15 +442,15 @@ def plot_max_pixel_coords(work_image, plot_image):
     for col in range(work_image.shape[1]):
         max_pixel_row = np.argmax(work_image[:, col])  # Find index of maximum pixel value in the column
         max_pixel_coords.append((col, max_pixel_row))  # Append coordinates to the list
-
-    # Plot the coordinates on the image
-    plt.figure()
-    plt.imshow(plot_image, cmap='gray')
-    plt.scatter(*zip(*max_pixel_coords), color='red', s=5)  # Unzip coordinates and plot as scatter points
-    plt.title('Pixels with Maximum Value in Each Column')
-    plt.xlabel('Column')
-    plt.ylabel('Row')
-    plt.show()
+    if show ==1:
+        # Plot the coordinates on the image
+        plt.figure()
+        plt.imshow(plot_image, cmap='gray')
+        plt.scatter(*zip(*max_pixel_coords), color='red', s=5)  # Unzip coordinates and plot as scatter points
+        plt.title('Pixels with Maximum Value in Each Column')
+        plt.xlabel('Column')
+        plt.ylabel('Row')
+        plt.show()
     x_coords, y_coords = zip(*max_pixel_coords)
     return x_coords, y_coords
 
@@ -469,7 +471,96 @@ def plot_image_as_surface(image):
     # Show plot
     plt.show()  
     
-# Specify the folder path containing TIFF images
+# Function to wait for spacebar press
+
+# Function to wait for spacebar press
+def wait_for_spacebar():
+    input("Press Space to continue...")
+   
+def plot_velocity(x_values_jet, y_values_jet, x_values_splash, y_values_splash, show = 0):
+    """
+    Plot derivative curves for two sets of points.
+
+    Args:
+    - x_values_1: X values for the first set of points
+    - y_values_1: Y values for the first set of points
+    - x_values_2: X values for the second set of points
+    - y_values_2: Y values for the second set of points
+
+    Returns:
+    None (displays the plot)
+    """
+    # Fit the points with a second-degree polynomial
+    coefficients_1 = np.polyfit(x_values_jet, y_values_jet, 2)
+    poly_function_1 = np.poly1d(coefficients_1)
+    
+    coefficients_2 = np.polyfit(x_values_splash, y_values_splash, 2)
+    poly_function_2 = np.poly1d(coefficients_2)
+
+    # Derive the polynomial functions
+    derivative_poly_function_1 = poly_function_1.deriv()
+    derivative_poly_function_2 = poly_function_2.deriv()
+
+    # Generate x values for plotting the derivative curves
+    x_values_plot = np.linspace(min(min(x_values_jet), min(x_values_splash)), max(max(x_values_jet), max(x_values_splash)), 100)
+
+    # Evaluate the derivative polynomial functions at the x values
+    y_values_derivative_1 = derivative_poly_function_1(x_values_plot)
+    y_values_derivative_2 = derivative_poly_function_2(x_values_plot)
+    if show ==1:
+        # Plot the derivative curves
+        plt.figure(figsize=(10, 5))
+        plt.plot(x_values_plot, y_values_derivative_1, color='red', label='Velocity Jet')
+        plt.plot(x_values_plot, y_values_derivative_2, color='blue', label='Velocity Splash')
+    
+        # Add labels and legend
+        plt.xlabel('X')
+        plt.ylabel('Y')
+        plt.title('Second Degree Polynomial Fit Derivatives')
+        plt.legend()
+    
+        # Show plot
+        plt.show()
+    return x_values_plot, derivative_poly_function_1, derivative_poly_function_2
+
+def plot_acceleration(x_values_plot, derivative_poly_function_1, derivative_poly_function_2, show = 0):
+    """
+    Plot first and second derivative curves.
+
+    Args:
+    - x_values_plot: X values for plotting the derivative curves
+    - derivative_poly_function_1: First derivative polynomial function
+    - derivative_poly_function_2: Second derivative polynomial function
+
+    Returns:
+    None (displays the plot)
+    """
+    # Calculate the second derivatives
+    second_derivative_poly_function_1 = derivative_poly_function_1.deriv()
+    second_derivative_poly_function_2 = derivative_poly_function_2.deriv()
+
+    # Evaluate the second derivative polynomial functions at the x values
+    y_values_second_derivative_1 = second_derivative_poly_function_1(x_values_plot)
+    y_values_second_derivative_2 = second_derivative_poly_function_2(x_values_plot)
+
+    if show ==1:
+        # Plot the derivative and second derivative curves
+        plt.figure(figsize=(10, 5))
+        # plt.plot(x_values_plot, derivative_poly_function_1(x_values_plot), color='red', label='First Derivative 1')
+        # plt.plot(x_values_plot, derivative_poly_function_2(x_values_plot), color='blue', label='First Derivative 2')
+        plt.plot(x_values_plot, y_values_second_derivative_1, color='green', label='Acceleration Jet')
+        plt.plot(x_values_plot, y_values_second_derivative_2, color='orange', label='Acceleration Splash')
+    
+        # Add labels and legend
+        plt.xlabel('X')
+        plt.ylabel('Y')
+        plt.title('First and Second Derivative Curves')
+        plt.legend()
+
+        # Show plot
+        plt.show()
+    return y_values_second_derivative_1[0], y_values_second_derivative_2[0]
+    # Specify the folder path containing TIFF images
 folder_path = r"d:\Users\Ana\Desktop\experiments\experiments internship\5000fps\experiments\60degrees\H103mm_d2.7mm\SaveData"
 
 
@@ -536,21 +627,22 @@ for s in StackList[0:3]:
     
     # Evaluate the polynomial function at the x values
     y_values_jet = poly_function_jet(x_values_jet)
-    
-    # Plot the points
-    plt.scatter(x, y, label='Data Points')
-    
-    # Plot the polynomial curve
-    plt.plot(x_values_jet, y_values_jet, color='red', label='Polynomial Fit')
-    
-    # Add labels and legend
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.title('Reslice jet Second Degree Polynomial Fit ')
-    plt.legend()
-    
-    # Show plot
-    plt.show()
+    show = 0
+    if show ==1:
+        # Plot the points
+        plt.scatter(x, y, label='Data Points')
+        
+        # Plot the polynomial curve
+        plt.plot(x_values_jet, y_values_jet, color='red', label='Polynomial Fit')
+        
+        # Add labels and legend
+        plt.xlabel('X')
+        plt.ylabel('Y')
+        plt.title('Reslice jet Second Degree Polynomial Fit ')
+        plt.legend()
+        
+        # Show plot
+        plt.show()
  
     
     
@@ -586,24 +678,27 @@ for s in StackList[0:3]:
     
     # Evaluate the polynomial function at the x values
     y_values_splash = poly_function_splash(x_values_splash)
+    show = 0
+    if show ==1:
+        # Plot the points
+        plt.scatter(x, y, label='Data Points')
+        
+        # Plot the polynomial curve
+        plt.plot(x_values_splash, y_values_splash, color='red', label='Polynomial Fit')
+        
+        # Add labels and legend
+        plt.xlabel('X')
+        plt.ylabel('Y')
+        plt.title('Reslice Splash Second Degree Polynomial Fit ')
+        plt.legend()
+        
+        # Show plot
+        plt.show()
     
-    # Plot the points
-    plt.scatter(x, y, label='Data Points')
     
-    # Plot the polynomial curve
-    plt.plot(x_values_splash, y_values_splash, color='red', label='Polynomial Fit')
+    x_values_plot, derivative_poly_function_1, derivative_poly_function_2 = plot_velocity(x_values_jet, y_values_jet, x_values_splash, y_values_splash, 0)
+    acc_jet, acc_splash =  plot_acceleration(x_values_plot, derivative_poly_function_1, derivative_poly_function_2, 1)
     
-    # Add labels and legend
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.title('Reslice Splash Second Degree Polynomial Fit ')
-    plt.legend()
-    
-    # Show plot
-    plt.show()
-
-
-
     # SD.loc[s, 'angle[degrees]'] = angle
     # SD.loc[s, 'IdealDiam[mm]'] = ideal_diam
     # SD.loc[s, 'Height[cm]'] = height
