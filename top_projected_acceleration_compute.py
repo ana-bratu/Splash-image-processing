@@ -451,6 +451,23 @@ def plot_max_pixel_coords(work_image, plot_image):
     plt.show()
     x_coords, y_coords = zip(*max_pixel_coords)
     return x_coords, y_coords
+
+
+def plot_image_as_surface(image):
+        
+    gray =  copy.deepcopy(image)
+     
+    # Create meshgrid
+    x = np.arange(0, gray.shape[1], 1)
+    y = np.arange(0, gray.shape[0], 1)
+    x, y = np.meshgrid(x, y)
+    
+    # Plot the surface
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    surface = ax.plot_surface(x, y, gray, cmap='gray')
+    # Show plot
+    plt.show()  
     
 # Specify the folder path containing TIFF images
 folder_path = r"d:\Users\Ana\Desktop\experiments\experiments internship\5000fps\experiments\60degrees\H103mm_d2.7mm\SaveData"
@@ -473,7 +490,7 @@ StackList = SD.index
 jet_acc = []
 splash_acc = []
 Circularity = []
-for s in StackList[0:1]:
+for s in StackList[0:3]:
 
     _, TopStack = cv2.imreadmulti(folder_path + '\\Top_' + s + '.tif', [], -1 )
     # count = 6
@@ -489,14 +506,6 @@ for s in StackList[0:1]:
     
     reslice_jet =  np.array(reslice_jet, dtype=np.uint16)
     
-    
-    # plt.figure(figsize=(8, 6))  # Create a new figure with specified size
-
-    # plt.imshow(reslice_jet, cmap='gray')  # Display the result
-    # plt.title("Reslice Jet")
-    # plt.show()
-    
-    
 
     img = reslice_jet
     # Resample image to double size
@@ -511,46 +520,40 @@ for s in StackList[0:1]:
 
     # Apply Sobel operator along y-axis
     sobel_image_y = sobel_y(derivative_image)
-    
-    # Plot the images
-    # plt.figure(figsize=(10, 5))
-    
-    # plt.subplot(3,1, 1)
-    # plt.imshow(img, cmap='gray')
-    # plt.title('Original Image')
-    # plt.axis('off')
-    
-    # plt.subplot(3,1, 2)
-    # plt.imshow(derivative_image, cmap='gray')
-    # plt.title('Convolution with a Derivative of Gaussian')
-    # plt.axis('off')
-    
-    # plt.subplot(3,1, 3)
-    # plt.imshow(sobel_image_y, cmap='gray')
-    # plt.title('Sobel Y Image')
-    # plt.axis('off')
-    
-    # plt.tight_layout()
-    # plt.show()
+    x, y  = plot_max_pixel_coords(sobel_image_y, reslice_jet)
 
-
+    x = np.array(x)
+    y = np.array(y)
     
-    # gray =  sobel_image_y
-     
-    # # Create meshgrid
-    # x = np.arange(0, gray.shape[1], 1)
-    # y = np.arange(0, gray.shape[0], 1)
-    # x, y = np.meshgrid(x, y)
+    # Fit the points with a second-degree polynomial
+    coefficients = np.polyfit(x, y, 2)  # Fit a second-degree polynomial (quadratic)
     
-    # # Plot the surface
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection='3d')
-    # surface = ax.plot_surface(x, y, gray, cmap='gray')
+    # Generate the polynomial function using the coefficients
+    poly_function_jet = np.poly1d(coefficients)
+    
+    # Generate x values for plotting the polynomial curve
+    x_values_jet = np.linspace(min(x), max(x), 100)
+    
+    # Evaluate the polynomial function at the x values
+    y_values_jet = poly_function_jet(x_values_jet)
+    
+    # Plot the points
+    plt.scatter(x, y, label='Data Points')
+    
+    # Plot the polynomial curve
+    plt.plot(x_values_jet, y_values_jet, color='red', label='Polynomial Fit')
+    
+    # Add labels and legend
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.title('Reslice jet Second Degree Polynomial Fit ')
+    plt.legend()
     
     # Show plot
-    # plt.show()  
+    plt.show()
+ 
     
-    plot_max_pixel_coords(sobel_image_y, reslice_jet)
+    
     
     
     # SPLASH
@@ -564,54 +567,11 @@ for s in StackList[0:1]:
     ks = 15 #kernel_size
     s = 0.01 #sigma
     derivative_image =convolve_with_derivative_of_gaussian(resampled_img, ks, s)
-
-
+    
     # Apply Sobel operator along y-axis
     sobel_image_y = sobel_y(derivative_image)
     x, y  = plot_max_pixel_coords(sobel_image_y, reslice_splash)
-    # very smooth...maybe too smooth?
-    
-    spline = UnivariateSpline(x, y, s=0.1)
-    X1 = np.linspace(0, len(y), 100)
-    Y1 = spline(X1)
-    plt.plot(X1, Y1)
-    plt.show()
-    
-    # Plot the images
-    plt.figure(figsize=(10, 5))
-    plt.scatter(x,y)
-    plt.plot(X1, Y1, label = "UnivariateSpline")
-    
-    spline = UnivariateSpline(x, y, s=1)
-    X1 = np.linspace(0, len(y), 100)
-    Y1 = spline(X1)
-    plt.plot(X1, Y1)
-    
-    spline = UnivariateSpline(x, y, s=10)
-    X1 = np.linspace(0, len(y), 100)
-    Y1 = spline(X1)
-    plt.plot(X1, Y1)
-    
-    spline = UnivariateSpline(x, y, s=100)
-    X1 = np.linspace(0, len(y), 100)
-    Y1 = spline(X1)
-    plt.plot(X1, Y1)
-    
-    spline = UnivariateSpline(x, y, s=1000)
-    X1 = np.linspace(0, len(y), 100)
-    Y1 = spline(X1)
-    plt.plot(X1, Y1)
-    
-    spline = UnivariateSpline(x, y, s=10000)
-    X1 = np.linspace(0, len(y), 100)
-    Y1 = spline(X1)
-    plt.plot(X1, Y1)
-    plt.legend(["data points","piecewise polynomial","UnivariateSpline s=0.1","UnivariateSpline s=1","UnivariateSpline s=10","UnivariateSpline s=100","UnivariateSpline s=1000","UnivariateSpline s=10000"])
-    plt.show()
-    
-    
-    
-    
+
     x = np.array(x)
     y = np.array(y)
     
@@ -619,28 +579,30 @@ for s in StackList[0:1]:
     coefficients = np.polyfit(x, y, 2)  # Fit a second-degree polynomial (quadratic)
     
     # Generate the polynomial function using the coefficients
-    poly_function = np.poly1d(coefficients)
+    poly_function_splash = np.poly1d(coefficients)
     
     # Generate x values for plotting the polynomial curve
-    x_values = np.linspace(min(x), max(x), 100)
+    x_values_splash = np.linspace(min(x), max(x), 100)
     
     # Evaluate the polynomial function at the x values
-    y_values = poly_function(x_values)
+    y_values_splash = poly_function_splash(x_values_splash)
     
     # Plot the points
     plt.scatter(x, y, label='Data Points')
     
     # Plot the polynomial curve
-    plt.plot(x_values, y_values, color='red', label='Polynomial Fit')
+    plt.plot(x_values_splash, y_values_splash, color='red', label='Polynomial Fit')
     
     # Add labels and legend
     plt.xlabel('X')
     plt.ylabel('Y')
-    plt.title('Second Degree Polynomial Fit')
+    plt.title('Reslice Splash Second Degree Polynomial Fit ')
     plt.legend()
     
     # Show plot
     plt.show()
+
+
 
     # SD.loc[s, 'angle[degrees]'] = angle
     # SD.loc[s, 'IdealDiam[mm]'] = ideal_diam
