@@ -581,7 +581,7 @@ StackList = SD.index
 jet_acc = []
 splash_acc = []
 Circularity = []
-for s in StackList[7:8]:
+for s in StackList[2:3]:
 
     _, TopStack = cv2.imreadmulti(folder_path + '\\Top_' + s + '.tif', [], -1 )
     # count = 6
@@ -607,10 +607,11 @@ for s in StackList[7:8]:
     ks = 15 #kernel_size
     s = 0.01 #sigma
     derivative_image =convolve_with_derivative_of_gaussian(resampled_img, ks, s)
-
+    
 
     # Apply Sobel operator along y-axis
     sobel_image_y = sobel_y(derivative_image)
+    plot_image_as_surface(sobel_image_y)
     x, y  = plot_max_pixel_coords(sobel_image_y, reslice_jet, 1)
 
     x = np.array(x)
