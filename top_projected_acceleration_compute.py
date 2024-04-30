@@ -330,7 +330,7 @@ def plot_img_and_hist(image, axes, bins=65536):
 
     return ax_img, ax_hist, ax_cdf
 
-def convolve_with_derivative_of_gaussian(image, kernel_size=15, sigma=3):
+def convolve_with_derivative_of_gaussian(image, kernel_size, sigma=3):
     """
     Convolve the input image along each column with the derivative of Gaussian kernel.
     
@@ -601,6 +601,47 @@ def fit_second_degree_polynomial(x, y, show_plot=True):
         plt.show()
     
     return poly_function_jet, x_values_jet, y_values_jet
+def crop_image_with_mouse(image):
+    # Resize the image for better viewing
+    scale_percent = 100  # percent of original size
+    width = int(image.shape[1] * scale_percent / 100)
+    height = int(image.shape[0] * scale_percent / 100)
+    dim = (width, height)
+    resized_image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
+    resized_image = image
+    # Normalize the resized image
+    normalized_image = cv2.normalize(resized_image, dst=None, alpha=0, beta=65535, norm_type=cv2.NORM_MINMAX)
+
+    # Mouse callback function to record clicked points
+    posList = []
+    def onMouse(event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            posList.append((x, y))
+
+    # Display the image and wait for mouse clicks
+    cv2.namedWindow('image', cv2.WINDOW_NORMAL)
+    cv2.imshow("image", normalized_image)
+    cv2.setMouseCallback('image', onMouse)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+    # Convert clicked points to NumPy array
+    posNp = np.array(posList)
+
+    # Check if at least one point was clicked
+    if len(posNp) > 0:
+        # Coordinates of the top-left corner of the region to crop
+        top_left = (0, 0)  
+        # Coordinates of the bottom-right corner of the region to crop
+        bottom_right = posNp[0]  
+
+        # Crop the image
+        cropped_image = normalized_image[top_left[1]:bottom_right[1], top_left[0]:bottom_right[0]]
+        return cropped_image
+    else:
+        print("No points selected for cropping.")
+        return None
+
 # Specify the folder path containing TIFF images
 folder_path = r"d:\Users\Ana\Desktop\experiments\experiments internship\5000fps\experiments\60degrees\H103mm_d2.7mm\SaveData"
 
@@ -611,7 +652,7 @@ scale_pixels = 42.67
 scale_mm = 2.7
 ideal_diam = 2.7
 fps = 5000
-length = 40 #maybe find something else
+length = 60 #maybe find something else
 angle = 60
 height = 103
 
@@ -622,7 +663,7 @@ StackList = SD.index
 jet_acc = []
 splash_acc = []
 Circularity = []
-for stack in StackList[2:3]:
+for stack in StackList[5:6]:
 
     _, TopStack = cv2.imreadmulti(folder_path + '\\Top_' + stack + '.tif', [], -1 )
     # count = 6
@@ -637,72 +678,60 @@ for stack in StackList[2:3]:
     reslice_jet, reslice_splash = reslice
     
     reslice_jet =  np.array(reslice_jet, dtype=np.uint16)
+    # cropped_image = crop_image_with_mouse(reslice_jet)
+
+    # img = cropped_image
+    img = reslice_jet
+    # Resample image to double size
+    resample_ratio = 1
+    new_shape = (img.shape[0]*resample_ratio, img.shape[1]*resample_ratio)
+    resampled_img = resample_image(img, new_shape)
+    resampled_img  = img
+    ks = 15 #kernel_size
+    s = 0.01 #sigma
+    derivative_image =convolve_with_derivative_of_gaussian(resampled_img, ks, s)
     
 
-    # img = reslice_jet
-    # # Resample image to double size
-    # resample_ratio = 1
-    # new_shape = (img.shape[0]*resample_ratio, img.shape[1]*resample_ratio)
-    # resampled_img = resample_image(img, new_shape)
-    # resampled_img  = img
-    # ks = 15 #kernel_size
-    # s = 0.01 #sigma
-    # derivative_image =convolve_with_derivative_of_gaussian(resampled_img, ks, s)
-    
-
-    # # Apply Sobel operator along y-axis
-    # sobel_image_y = sobel_y(derivative_image)
+    # Apply Sobel operator along y-axis
+    sobel_image_y = sobel_y(derivative_image)
     # plot_image_as_surface(sobel_image_y)
-    # x, y  = plot_max_pixel_coords(sobel_image_y, reslice_jet, 1)
-    # poly_function_jet, x_values_jet, y_values_jet = fit_second_degree_polynomial(x, y)
+    x, y  = plot_max_pixel_coords(sobel_image_y, reslice_jet, 1)
+    poly_function_jet, x_values_jet, y_values_jet = fit_second_degree_polynomial(x, y)
+    
+    
+    
     
     
     
     
     # SPLASH
-    img =  np.array(reslice_splash, dtype=np.uint16)
-    # Resize the image for better viewing
-    scale_percent = 300  # percent of original size
-    width = int(img.shape[1] * scale_percent / 100)
-    height = int(img.shape[0] * scale_percent / 100)
-    dim = (width, height)
-    img = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
-    normalized_image = cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX)
-
-    # Convert the image data to unsigned 8-bit integer (uint8)
-    normalized_image_uint8 = np.uint8(normalized_image)
-    posList = []    
-    cv2.namedWindow('image', cv2.WINDOW_NORMAL)
-    cv2.imshow("image", normalized_image)
-    cv2.setMouseCallback('image', onMouse)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-    posNp = np.array(posList)     # convert to NumPy for later use
-    
+    reslice_splash =  np.array(reslice_splash, dtype=np.uint16)
+    cropped_image = crop_image_with_mouse(reslice_splash)
+    img =  copy.deepcopy(cropped_image)
     
     
 
-    # # Resample image to double size
-    # resample_ratio = 1
-    # new_shape = (img.shape[0]*resample_ratio, img.shape[1]*resample_ratio)
-    # resampled_img = resample_image(img, new_shape)
-    # resampled_img  = img
-    # ks = 15 #kernel_size
-    # s = 0.01 #sigma
-    # derivative_image =convolve_with_derivative_of_gaussian(resampled_img, ks, s)
+    # Resample image to double size
+    resample_ratio = 1
+    new_shape = (img.shape[0]*resample_ratio, img.shape[1]*resample_ratio)
+    resampled_img = resample_image(img, new_shape)
+
+    ks = img.shape[0] #kernel_size
+    s = 0.01 #sigma
+    derivative_image =convolve_with_derivative_of_gaussian(resampled_img, ks, s)
     
-    # # Apply Sobel operator along y-axis
-    # sobel_image_y = sobel_y(derivative_image)
-    # img = copy.deepcopy(sobel_image_y)
+    # Apply Sobel operator along y-axis
+    sobel_image_y = sobel_y(derivative_image)
+    img = copy.deepcopy(sobel_image_y)
       
-    # x, y  = plot_max_pixel_coords(sobel_image_y, reslice_splash, 1)
-    # poly_function_splash, x_values_splash, y_values_splash = fit_second_degree_polynomial(x, y)
+    x, y  = plot_max_pixel_coords(sobel_image_y, reslice_splash, 1)
+    poly_function_splash, x_values_splash, y_values_splash = fit_second_degree_polynomial(x, y)
 
     
     
     
-    # x_values_plot, derivative_poly_function_1, derivative_poly_function_2 = plot_velocity(x_values_jet, y_values_jet, x_values_splash, y_values_splash, 1)
-    # acc_jet, acc_splash =  plot_acceleration(x_values_plot, derivative_poly_function_1, derivative_poly_function_2, 1)
+    x_values_plot, derivative_poly_function_1, derivative_poly_function_2 = plot_velocity(x_values_jet, y_values_jet, x_values_splash, y_values_splash, 1)
+    acc_jet, acc_splash =  plot_acceleration(x_values_plot, derivative_poly_function_1, derivative_poly_function_2, 1)
   
     # SD.loc[s, 'angle[degrees]'] = angle
     # SD.loc[s, 'IdealDiam[mm]'] = ideal_diam
