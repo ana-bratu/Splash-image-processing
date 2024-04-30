@@ -150,14 +150,10 @@ def read_tiff_images_cv2(TopStack, line_coordinates):
     # print(angle_jet, angle_splash)
     return all_images, reslice
 
-def mouse_callback(event, x, y, flags, param):
-
-    global selected_points, display_image
-    to_use_image = copy.deepcopy(display_image)
-    if event == cv2.EVENT_LBUTTONDOWN:
-        selected_points.append((x, y))
-        cv2.circle(to_use_image, (x, y), 1, (0, 0, 255), -1)
-        cv2.imshow('Select Points', to_use_image)
+def onMouse(event, x, y, flags, param):
+   global posList
+   if event == cv2.EVENT_LBUTTONDOWN:
+        posList.append((x, y))
         
 def average_stack(TopStack, count):
 
@@ -334,7 +330,6 @@ def plot_img_and_hist(image, axes, bins=65536):
 
     return ax_img, ax_hist, ax_cdf
 
-
 def convolve_with_derivative_of_gaussian(image, kernel_size=15, sigma=3):
     """
     Convolve the input image along each column with the derivative of Gaussian kernel.
@@ -454,7 +449,6 @@ def plot_max_pixel_coords(work_image, plot_image, show = 0):
     x_coords, y_coords = zip(*max_pixel_coords)
     return x_coords, y_coords
 
-
 def plot_image_as_surface(image):
         
     gray =  copy.deepcopy(image)
@@ -470,8 +464,6 @@ def plot_image_as_surface(image):
     surface = ax.plot_surface(x, y, gray, cmap='gray')
     # Show plot
     plt.show()  
-    
-# Function to wait for spacebar press
 
 # Function to wait for spacebar press
 def wait_for_spacebar():
@@ -560,7 +552,56 @@ def plot_acceleration(x_values_plot, derivative_poly_function_1, derivative_poly
         # Show plot
         plt.show()
     return y_values_second_derivative_1[0], y_values_second_derivative_2[0]
-    # Specify the folder path containing TIFF images
+
+
+def fit_second_degree_polynomial(x, y, show_plot=True):
+    """
+    Fits a second-degree polynomial to the given data points (x, y).
+
+    Parameters:
+        x (array-like): The x-coordinates of the data points.
+        y (array-like): The y-coordinates of the data points.
+        show_plot (bool, optional): Whether to display the plot. Defaults to True.
+
+    Returns:
+        numpy.poly1d: The polynomial function.
+        numpy.ndarray: The x values for plotting the polynomial curve.
+        numpy.ndarray: The y values for plotting the polynomial curve.
+    """
+    # Convert lists to numpy arrays
+    x = np.array(x)
+    y = np.array(y)
+    
+    # Fit the points with a second-degree polynomial
+    coefficients = np.polyfit(x, y, 2)  # Fit a second-degree polynomial (quadratic)
+    
+    # Generate the polynomial function using the coefficients
+    poly_function_jet = np.poly1d(coefficients)
+    
+    # Generate x values for plotting the polynomial curve
+    x_values_jet = np.linspace(min(x), max(x), 100)
+    
+    # Evaluate the polynomial function at the x values
+    y_values_jet = poly_function_jet(x_values_jet)
+    
+    if show_plot:
+        # Plot the points
+        plt.scatter(x, y, label='Data Points')
+        
+        # Plot the polynomial curve
+        plt.plot(x_values_jet, y_values_jet, color='red', label='Polynomial Fit')
+        
+        # Add labels and legend
+        plt.xlabel('X')
+        plt.ylabel('Y')
+        plt.title('Reslice jet Second Degree Polynomial Fit ')
+        plt.legend()
+        
+        # Show plot
+        plt.show()
+    
+    return poly_function_jet, x_values_jet, y_values_jet
+# Specify the folder path containing TIFF images
 folder_path = r"d:\Users\Ana\Desktop\experiments\experiments internship\5000fps\experiments\60degrees\H103mm_d2.7mm\SaveData"
 
 
@@ -581,9 +622,9 @@ StackList = SD.index
 jet_acc = []
 splash_acc = []
 Circularity = []
-for s in StackList[2:3]:
+for stack in StackList[2:3]:
 
-    _, TopStack = cv2.imreadmulti(folder_path + '\\Top_' + s + '.tif', [], -1 )
+    _, TopStack = cv2.imreadmulti(folder_path + '\\Top_' + stack + '.tif', [], -1 )
     # count = 6
     # for file in TopStack: file = average_stack(TopStack, count)
     line_coordinates = []
@@ -598,108 +639,71 @@ for s in StackList[2:3]:
     reslice_jet =  np.array(reslice_jet, dtype=np.uint16)
     
 
-    img = reslice_jet
-    # Resample image to double size
-    resample_ratio = 1
-    new_shape = (img.shape[0]*resample_ratio, img.shape[1]*resample_ratio)
-    resampled_img = resample_image(img, new_shape)
-    resampled_img  = img
-    ks = 15 #kernel_size
-    s = 0.01 #sigma
-    derivative_image =convolve_with_derivative_of_gaussian(resampled_img, ks, s)
+    # img = reslice_jet
+    # # Resample image to double size
+    # resample_ratio = 1
+    # new_shape = (img.shape[0]*resample_ratio, img.shape[1]*resample_ratio)
+    # resampled_img = resample_image(img, new_shape)
+    # resampled_img  = img
+    # ks = 15 #kernel_size
+    # s = 0.01 #sigma
+    # derivative_image =convolve_with_derivative_of_gaussian(resampled_img, ks, s)
     
 
-    # Apply Sobel operator along y-axis
-    sobel_image_y = sobel_y(derivative_image)
-    plot_image_as_surface(sobel_image_y)
-    x, y  = plot_max_pixel_coords(sobel_image_y, reslice_jet, 1)
-
-    x = np.array(x)
-    y = np.array(y)
-    
-    # Fit the points with a second-degree polynomial
-    coefficients = np.polyfit(x, y, 2)  # Fit a second-degree polynomial (quadratic)
-    
-    # Generate the polynomial function using the coefficients
-    poly_function_jet = np.poly1d(coefficients)
-    
-    # Generate x values for plotting the polynomial curve
-    x_values_jet = np.linspace(min(x), max(x), 100)
-    
-    # Evaluate the polynomial function at the x values
-    y_values_jet = poly_function_jet(x_values_jet)
-    show = 1
-    if show ==1:
-        # Plot the points
-        plt.scatter(x, y, label='Data Points')
-        
-        # Plot the polynomial curve
-        plt.plot(x_values_jet, y_values_jet, color='red', label='Polynomial Fit')
-        
-        # Add labels and legend
-        plt.xlabel('X')
-        plt.ylabel('Y')
-        plt.title('Reslice jet Second Degree Polynomial Fit ')
-        plt.legend()
-        
-        # Show plot
-        plt.show()
- 
+    # # Apply Sobel operator along y-axis
+    # sobel_image_y = sobel_y(derivative_image)
+    # plot_image_as_surface(sobel_image_y)
+    # x, y  = plot_max_pixel_coords(sobel_image_y, reslice_jet, 1)
+    # poly_function_jet, x_values_jet, y_values_jet = fit_second_degree_polynomial(x, y)
     
     
     
     
     # SPLASH
     img =  np.array(reslice_splash, dtype=np.uint16)
- 
-    # Resample image to double size
-    resample_ratio = 1
-    new_shape = (img.shape[0]*resample_ratio, img.shape[1]*resample_ratio)
-    resampled_img = resample_image(img, new_shape)
-    resampled_img  = img
-    ks = 15 #kernel_size
-    s = 0.01 #sigma
-    derivative_image =convolve_with_derivative_of_gaussian(resampled_img, ks, s)
-    
-    # Apply Sobel operator along y-axis
-    sobel_image_y = sobel_y(derivative_image)
-    x, y  = plot_max_pixel_coords(sobel_image_y, reslice_splash, 1)
+    # Resize the image for better viewing
+    scale_percent = 300  # percent of original size
+    width = int(img.shape[1] * scale_percent / 100)
+    height = int(img.shape[0] * scale_percent / 100)
+    dim = (width, height)
+    img = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
+    normalized_image = cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX)
 
-    x = np.array(x)
-    y = np.array(y)
-    
-    # Fit the points with a second-degree polynomial
-    coefficients = np.polyfit(x, y, 2)  # Fit a second-degree polynomial (quadratic)
-    
-    # Generate the polynomial function using the coefficients
-    poly_function_splash = np.poly1d(coefficients)
-    
-    # Generate x values for plotting the polynomial curve
-    x_values_splash = np.linspace(min(x), max(x), 100)
-    
-    # Evaluate the polynomial function at the x values
-    y_values_splash = poly_function_splash(x_values_splash)
-    show = 1
-    if show ==1:
-        # Plot the points
-        plt.scatter(x, y, label='Data Points')
-        
-        # Plot the polynomial curve
-        plt.plot(x_values_splash, y_values_splash, color='red', label='Polynomial Fit')
-        
-        # Add labels and legend
-        plt.xlabel('X')
-        plt.ylabel('Y')
-        plt.title('Reslice Splash Second Degree Polynomial Fit ')
-        plt.legend()
-        
-        # Show plot
-        plt.show()
+    # Convert the image data to unsigned 8-bit integer (uint8)
+    normalized_image_uint8 = np.uint8(normalized_image)
+    posList = []    
+    cv2.namedWindow('image', cv2.WINDOW_NORMAL)
+    cv2.imshow("image", normalized_image)
+    cv2.setMouseCallback('image', onMouse)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    posNp = np.array(posList)     # convert to NumPy for later use
     
     
-    x_values_plot, derivative_poly_function_1, derivative_poly_function_2 = plot_velocity(x_values_jet, y_values_jet, x_values_splash, y_values_splash, 1)
-    acc_jet, acc_splash =  plot_acceleration(x_values_plot, derivative_poly_function_1, derivative_poly_function_2, 1)
     
+
+    # # Resample image to double size
+    # resample_ratio = 1
+    # new_shape = (img.shape[0]*resample_ratio, img.shape[1]*resample_ratio)
+    # resampled_img = resample_image(img, new_shape)
+    # resampled_img  = img
+    # ks = 15 #kernel_size
+    # s = 0.01 #sigma
+    # derivative_image =convolve_with_derivative_of_gaussian(resampled_img, ks, s)
+    
+    # # Apply Sobel operator along y-axis
+    # sobel_image_y = sobel_y(derivative_image)
+    # img = copy.deepcopy(sobel_image_y)
+      
+    # x, y  = plot_max_pixel_coords(sobel_image_y, reslice_splash, 1)
+    # poly_function_splash, x_values_splash, y_values_splash = fit_second_degree_polynomial(x, y)
+
+    
+    
+    
+    # x_values_plot, derivative_poly_function_1, derivative_poly_function_2 = plot_velocity(x_values_jet, y_values_jet, x_values_splash, y_values_splash, 1)
+    # acc_jet, acc_splash =  plot_acceleration(x_values_plot, derivative_poly_function_1, derivative_poly_function_2, 1)
+  
     # SD.loc[s, 'angle[degrees]'] = angle
     # SD.loc[s, 'IdealDiam[mm]'] = ideal_diam
     # SD.loc[s, 'Height[cm]'] = height
