@@ -62,7 +62,7 @@ def read_tiff_images_cv2(TopStack, line_coordinates):
     reslice_jet = []
     reslice_splash = []
     # Iterate through images
-    for file in TopStack[0:15]:
+    for file in TopStack[0:20]:
         # Check if the file is a TIFF image
         # if file.lower().endswith(".tiff") or file.lower().endswith(".tif"):
         # file_path = os.path.join(folder_path, file)
@@ -386,12 +386,6 @@ def sobel_y(image):
     return sobel_y
 
 def resample_image(image, new_shape):
-    
-
-    
-    
-    
-    
     """
     Resamples an image by interpolation using spline fits.
 
@@ -554,7 +548,7 @@ def plot_acceleration(x_values_plot, derivative_poly_function_1, derivative_poly
     return y_values_second_derivative_1[0], y_values_second_derivative_2[0]
 
 
-def fit_second_degree_polynomial(x, y, show_plot=True):
+def fit_second_degree_polynomial(x, y,title, show_plot=True):
     """
     Fits a second-degree polynomial to the given data points (x, y).
 
@@ -594,7 +588,7 @@ def fit_second_degree_polynomial(x, y, show_plot=True):
         # Add labels and legend
         plt.xlabel('X')
         plt.ylabel('Y')
-        plt.title('Reslice jet Second Degree Polynomial Fit ')
+        plt.title(title)
         plt.legend()
         
         # Show plot
@@ -603,6 +597,7 @@ def fit_second_degree_polynomial(x, y, show_plot=True):
     return poly_function_jet, x_values_jet, y_values_jet
 def crop_image_with_mouse(image):
     # Resize the image for better viewing
+    original_image = copy.deepcopy(image)
     scale_percent = 100  # percent of original size
     width = int(image.shape[1] * scale_percent / 100)
     height = int(image.shape[0] * scale_percent / 100)
@@ -640,20 +635,19 @@ def crop_image_with_mouse(image):
         return cropped_image
     else:
         print("No points selected for cropping.")
-        return None
+        return original_image
 
 # Specify the folder path containing TIFF images
-folder_path = r"d:\Users\Ana\Desktop\experiments\experiments internship\5000fps\experiments\60degrees\H103mm_d2.7mm\SaveData"
-
+folder_path = r"d:\Users\Ana\Desktop\experiments\experiments internship\5000fps\experiments\30degrees\H103mm_d2.7mm\SaveData"
 
 
 # Specify experiment details
-scale_pixels = 42.67
-scale_mm = 2.7
+scale_pixels = 37
+scale_mm = 2.7 * 1e-3
 ideal_diam = 2.7
 fps = 5000
-length = 60 #maybe find something else
-angle = 60
+length = 100 #maybe find something else
+angle = 30
 height = 103
 
 
@@ -663,58 +657,54 @@ StackList = SD.index
 jet_acc = []
 splash_acc = []
 Circularity = []
-for stack in StackList[5:6]:
+for stack in StackList:
 
     _, TopStack = cv2.imreadmulti(folder_path + '\\Top_' + stack + '.tif', [], -1 )
     # count = 6
     # for file in TopStack: file = average_stack(TopStack, count)
     line_coordinates = []
     extract_line_coord(cv2.normalize(TopStack[20], dst=None, alpha=0, beta=65535, norm_type=cv2.NORM_MINMAX))
-    # print(line_coordinates)
-    # print(s)
+    plt.figure()
+    plt.imshow(TopStack[20], cmap = 'gray')
     
 
     list_of_lists_cv2, reslice = read_tiff_images_cv2(TopStack, line_coordinates)    
     reslice_jet, reslice_splash = reslice
-    
-    reslice_jet =  np.array(reslice_jet, dtype=np.uint16)
-    # cropped_image = crop_image_with_mouse(reslice_jet)
 
-    # img = cropped_image
-    img = reslice_jet
-    # Resample image to double size
+    reslice_jet =  np.array(reslice_jet, dtype=np.uint16)
+
+    cropped_image = crop_image_with_mouse(reslice_jet)
+    img =  copy.deepcopy(cropped_image)
+    
+    # resample image
     resample_ratio = 1
     new_shape = (img.shape[0]*resample_ratio, img.shape[1]*resample_ratio)
     resampled_img = resample_image(img, new_shape)
     resampled_img  = img
-    ks = 15 #kernel_size
+    ks = img.shape[0] #kernel_size
     s = 0.01 #sigma
     derivative_image =convolve_with_derivative_of_gaussian(resampled_img, ks, s)
     
 
     # Apply Sobel operator along y-axis
     sobel_image_y = sobel_y(derivative_image)
+    
     # plot_image_as_surface(sobel_image_y)
     x, y  = plot_max_pixel_coords(sobel_image_y, reslice_jet, 1)
-    poly_function_jet, x_values_jet, y_values_jet = fit_second_degree_polynomial(x, y)
+    x = [i*float(scale_mm/scale_pixels) for i in x]
+    y = [i*float(fps) for i in y]
+    poly_function_jet, x_values_jet, y_values_jet = fit_second_degree_polynomial(x, y, "Reslice jet Second Degree Polynomial Fit")
     
     
-    
-    
-    
-    
-    
-    # SPLASH
+# SPLASH
     reslice_splash =  np.array(reslice_splash, dtype=np.uint16)
     cropped_image = crop_image_with_mouse(reslice_splash)
     img =  copy.deepcopy(cropped_image)
-    
-    
 
-    # Resample image to double size
-    resample_ratio = 1
+    # Resample image
     new_shape = (img.shape[0]*resample_ratio, img.shape[1]*resample_ratio)
-    resampled_img = resample_image(img, new_shape)
+    # resampled_img = resample_image(img, new_shape)
+    resampled_img = img
 
     ks = img.shape[0] #kernel_size
     s = 0.01 #sigma
@@ -724,18 +714,25 @@ for stack in StackList[5:6]:
     sobel_image_y = sobel_y(derivative_image)
     img = copy.deepcopy(sobel_image_y)
       
-    x, y  = plot_max_pixel_coords(sobel_image_y, reslice_splash, 1)
-    poly_function_splash, x_values_splash, y_values_splash = fit_second_degree_polynomial(x, y)
+    x, y  = plot_max_pixel_coords(sobel_image_y, resampled_img, 1)
+    x = [i*float(scale_mm/scale_pixels) for i in x]
+    y = [i*float(fps) for i in y]
+    poly_function_splash, x_values_splash, y_values_splash = fit_second_degree_polynomial(x, y, "Reslice Splash Second Degree Polynomial Fit")
 
     
-    
+
     
     x_values_plot, derivative_poly_function_1, derivative_poly_function_2 = plot_velocity(x_values_jet, y_values_jet, x_values_splash, y_values_splash, 1)
     acc_jet, acc_splash =  plot_acceleration(x_values_plot, derivative_poly_function_1, derivative_poly_function_2, 1)
   
+    jet_acc.append(acc_jet)
+    splash_acc.append(acc_splash)
+    
     # SD.loc[s, 'angle[degrees]'] = angle
     # SD.loc[s, 'IdealDiam[mm]'] = ideal_diam
     # SD.loc[s, 'Height[cm]'] = height
     # SD.loc[s,'Top Velocity jet'] = velocity_jet
     # SD.loc[s,'Top Velocity splash'] = velocity_splash
+    # SD.loc[s,'Acc splash'] = splash_acc
+    # SD.loc[s,'Acc jet'] =jet_acc
     # # SD.to_csv(folder_path + '\\SplashData_Cent_ST.csv',index_label = 'Ind')
