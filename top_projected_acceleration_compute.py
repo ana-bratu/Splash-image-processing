@@ -638,8 +638,7 @@ def crop_image_with_mouse(image):
         return original_image
 
 # Specify the folder path containing TIFF images
-folder_path = r"d:\Users\Ana\Desktop\experiments\experiments internship\5000fps\experiments\30degrees\H103mm_d2.7mm\SaveData"
-
+folder_path = r"D:\experiments\experiments internship\5000fps\experiments\30degrees\H103mm_d2.7mm\SaveData"
 
 # Specify experiment details
 scale_pixels = 37
