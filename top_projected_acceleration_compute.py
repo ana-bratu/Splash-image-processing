@@ -39,7 +39,7 @@ def draw_line(event, x, y, flags, param):
             line_coordinates.append((x, y))
 
             if len(line_coordinates) == 2:
-                cv2.line(param, line_coordinates[0], line_coordinates[1], (255, 0, 0), 2)
+                cv2.line(param, line_coordinates[0], line_coordinates[1], (255,255,51), 2)
                 cv2.imshow("Draw Line", param)
 
 def extract_line_coord(image):
@@ -443,6 +443,48 @@ def plot_max_pixel_coords(work_image, plot_image, show = 0):
     x_coords, y_coords = zip(*max_pixel_coords)
     return x_coords, y_coords
 
+def plot_varied_pixel_coords(work_image, plot_image, show=0, threshold=50):
+    """
+    Plot the coordinates of pixels in each column where the intensity varies by at least the given threshold units.
+    
+    Args:
+    - work_image: NumPy array representing the grayscale image for analysis
+    - plot_image: NumPy array representing the grayscale image for plotting
+    - show: Integer flag to display the plot (1 to show, 0 to not show)
+    - threshold: The intensity variation threshold
+    
+    Returns:
+    - x_coords: List of x-coordinates of the varied pixels
+    - y_coords: List of y-coordinates of the varied pixels
+    """
+    varied_pixel_coords = []
+    rows, cols = work_image.shape
+    
+    for col in range(cols):
+        for row in range(1, rows - 1):  # Avoid the first and last row to prevent out-of-bounds access
+            # Check intensity variation with neighboring pixels
+            if abs(work_image[row, col] - work_image[row - 1, col]) >= threshold or \
+               abs(work_image[row, col] - work_image[row + 1, col]) >= threshold:
+                varied_pixel_coords.append((col, row))
+                break  # Move to the next column after finding the first varied pixel in the current column
+    
+    if show == 1:
+        # Plot the coordinates on the image
+        plt.figure()
+        plt.imshow(plot_image, cmap='gray')
+        if varied_pixel_coords:
+            plt.scatter(*zip(*varied_pixel_coords), color='red', s=5)  # Unzip coordinates and plot as scatter points
+        plt.title('Pixels with Intensity Variation in Each Column')
+        plt.xlabel('Column')
+        plt.ylabel('Row')
+        plt.show()
+    
+    if varied_pixel_coords:
+        x_coords, y_coords = zip(*varied_pixel_coords)
+        return list(x_coords), list(y_coords)
+    else:
+        return [], []
+
 def plot_image_as_surface(image):
         
     gray =  copy.deepcopy(image)
@@ -507,7 +549,7 @@ def plot_velocity(x_values_jet, y_values_jet, x_values_splash, y_values_splash, 
     
         # Show plot
         plt.show()
-    return x_values_plot, derivative_poly_function_1, derivative_poly_function_2
+    return x_values_plot, y_values_derivative_1, y_values_derivative_2, derivative_poly_function_1, derivative_poly_function_2
 
 def plot_acceleration(x_values_plot, derivative_poly_function_1, derivative_poly_function_2, show = 0):
     """
@@ -548,7 +590,7 @@ def plot_acceleration(x_values_plot, derivative_poly_function_1, derivative_poly
     return y_values_second_derivative_1[0], y_values_second_derivative_2[0]
 
 
-def fit_second_degree_polynomial(x, y,title, show_plot=True):
+def fit_second_degree_polynomial(x, y,title, show_plot=False):
     """
     Fits a second-degree polynomial to the given data points (x, y).
 
@@ -580,7 +622,7 @@ def fit_second_degree_polynomial(x, y,title, show_plot=True):
     
     if show_plot:
         # Plot the points
-        plt.scatter(x, y, label='Data Points')
+        plt.scatter(x, y, color='green',label='Data Points')
         
         # Plot the polynomial curve
         plt.plot(x_values_jet, y_values_jet, color='red', label='Polynomial Fit')
@@ -638,17 +680,17 @@ def crop_image_with_mouse(image):
         return original_image
 
 # Specify the folder path containing TIFF images
-folder_path = r"d:\Users\Ana\Desktop\experiments\experiments internship\5000fps\experiments\30degrees\H103mm_d2.7mm\SaveData"
+folder_path = r"G:\experiments impact\fluo_new_lenses\SaveData"
 
 
 # Specify experiment details
-scale_pixels = 37
-scale_mm = 2.7 * 1e-3
-ideal_diam = 2.7
-fps = 5000
+scale_pixels = 44
+scale_mm = 3.5 * 1e-3
+ideal_diam = 3.5
+fps = 10000
 length = 100 #maybe find something else
-angle = 30
-height = 103
+angle = 45
+height = 60
 
 
 SD = pd.read_csv(folder_path + '\\SplashData_Cent_ST.csv',index_col = 'Ind')
@@ -657,50 +699,80 @@ StackList = SD.index
 jet_acc = []
 splash_acc = []
 Circularity = []
-for stack in StackList:
+for stack in StackList[0:1]:
 
     _, TopStack = cv2.imreadmulti(folder_path + '\\Top_' + stack + '.tif', [], -1 )
     # count = 6
     # for file in TopStack: file = average_stack(TopStack, count)
     line_coordinates = []
     extract_line_coord(cv2.normalize(TopStack[20], dst=None, alpha=0, beta=65535, norm_type=cv2.NORM_MINMAX))
-    plt.figure()
-    plt.imshow(TopStack[20], cmap = 'gray')
+    # Step 1: Display TopStack[20]
+    fig, axs = plt.subplots(4, 2, figsize=(18, 12)) # Adjust the grid size as needed
     
-
-    list_of_lists_cv2, reslice = read_tiff_images_cv2(TopStack, line_coordinates)    
+    # Display the initial TopStack image
+    axs[0, 0].imshow(TopStack[20], cmap='gray')
+    axs[0, 0].set_title('Impact image')
+    
+    # Step 2: Process the images
+    list_of_lists_cv2, reslice = read_tiff_images_cv2(TopStack, line_coordinates)
     reslice_jet, reslice_splash = reslice
-
-    reslice_jet =  np.array(reslice_jet, dtype=np.uint16)
-
+    
+    reslice_jet = np.array(reslice_jet, dtype=np.uint16)
+    
+    # Step 3: Cropped image
     cropped_image = crop_image_with_mouse(reslice_jet)
-    img =  copy.deepcopy(cropped_image)
+    img = copy.deepcopy(cropped_image)
     
-    # resample image
+    # Step 4: Resample image
     resample_ratio = 1
-    new_shape = (img.shape[0]*resample_ratio, img.shape[1]*resample_ratio)
-    resampled_img = resample_image(img, new_shape)
-    resampled_img  = img
-    ks = img.shape[0] #kernel_size
-    s = 0.01 #sigma
-    derivative_image =convolve_with_derivative_of_gaussian(resampled_img, ks, s)
+    new_shape = (img.shape[0] * resample_ratio, img.shape[1] * resample_ratio)
+    resampled_img = img
     
-
-    # Apply Sobel operator along y-axis
+    # Step 5: Derivative of Gaussian
+    ks = img.shape[0]  # kernel_size
+    s = 0.01  # sigma
+    derivative_image = convolve_with_derivative_of_gaussian(resampled_img, ks, s)
+    
+    # Display the cropped image
+    axs[0, 1].imshow(img, cmap='gray')
+    axs[0, 1].set_title('Reslice Jet')
+    
+    # Step 6: Apply Sobel operator along y-axis
     sobel_image_y = sobel_y(derivative_image)
     
-    # plot_image_as_surface(sobel_image_y)
-    x, y  = plot_max_pixel_coords(sobel_image_y, reslice_jet, 1)
-    x = [i*float(scale_mm/scale_pixels) for i in x]
-    y = [i*float(fps) for i in y]
+    # Display the derivative image
+    axs[1, 0].imshow(derivative_image, cmap='gray')
+    axs[1, 0].set_title('Convolution with a Derivative of Gaussian')
+    
+    # Display the Sobel y image
+    # axs[1, 1].imshow(sobel_image_y, cmap='gray')
+    # axs[1, 1].set_title('Sobel Y Image')
+    
+    # Step 7: Plot max pixel coordinates
+    x, y = plot_max_pixel_coords(derivative_image, derivative_image, show=0)
+    # axs[2, 0].imshow(img)
+    # axs[2, 0].plot(x, y, 'bo')
+    # axs[2, 0].set_title('Max Pixel Coordinates')
+    
+    # Step 8: Fit and plot second degree polynomial
     poly_function_jet, x_values_jet, y_values_jet = fit_second_degree_polynomial(x, y, "Reslice jet Second Degree Polynomial Fit")
+    axs[1, 1].imshow(img)
+    axs[1, 1].plot(x_values_jet, poly_function_jet(x_values_jet), 'r-')
+    axs[1, 1].plot(x, y, 'bo')
+    axs[1, 1].set_title('Second Degree Polynomial Fit')
+    
+    # Adjust layout
+    plt.tight_layout()
+    plt.show()
     
     
 # SPLASH
     reslice_splash =  np.array(reslice_splash, dtype=np.uint16)
     cropped_image = crop_image_with_mouse(reslice_splash)
     img =  copy.deepcopy(cropped_image)
-
+    # Display the cropped image
+    axs[2, 0].imshow(img, cmap='gray')
+    axs[2, 0].set_title('Reslice Splash')
     # Resample image
     new_shape = (img.shape[0]*resample_ratio, img.shape[1]*resample_ratio)
     # resampled_img = resample_image(img, new_shape)
@@ -709,24 +781,35 @@ for stack in StackList:
     ks = img.shape[0] #kernel_size
     s = 0.01 #sigma
     derivative_image =convolve_with_derivative_of_gaussian(resampled_img, ks, s)
+    # Display the derivative image
+    axs[2, 1].imshow(derivative_image, cmap='gray')
+    axs[2, 1].set_title('Convolution with a Derivative of Gaussian')
     
     # Apply Sobel operator along y-axis
     sobel_image_y = sobel_y(derivative_image)
     img = copy.deepcopy(sobel_image_y)
       
-    x, y  = plot_max_pixel_coords(sobel_image_y, resampled_img, 1)
-    x = [i*float(scale_mm/scale_pixels) for i in x]
-    y = [i*float(fps) for i in y]
+    x, y  = plot_max_pixel_coords(derivative_image, resampled_img, 0)
+    # x = [i*float(scale_mm/scale_pixels) for i in x]
+    # y = [i*float(fps) for i in y]
     poly_function_splash, x_values_splash, y_values_splash = fit_second_degree_polynomial(x, y, "Reslice Splash Second Degree Polynomial Fit")
-
+    axs[3, 0].imshow(img)
+    axs[3, 0].plot(x_values_splash, poly_function_splash(x_values_splash), 'r-')
+    axs[3, 0].plot(x, y, 'bo')
+    axs[3, 0].set_title('Second Degree Polynomial Fit')
     
 
     
-    x_values_plot, derivative_poly_function_1, derivative_poly_function_2 = plot_velocity(x_values_jet, y_values_jet, x_values_splash, y_values_splash, 1)
-    acc_jet, acc_splash =  plot_acceleration(x_values_plot, derivative_poly_function_1, derivative_poly_function_2, 1)
-  
-    jet_acc.append(acc_jet)
-    splash_acc.append(acc_splash)
+    x_values_plot, y_values_derivative_1, y_values_derivative_2, derivative_poly_function_1, derivative_poly_function_2 = plot_velocity(x_values_jet, y_values_jet, x_values_splash, y_values_splash, 0)
+    axs[3, 1].plot(x_values_plot, y_values_derivative_1, color='red', label='Velocity Jet')
+    axs[3, 1].plot(x_values_plot, y_values_derivative_2, color='blue', label='Velocity Splash')
+    axs[3, 1].set_title('Second Degree Polynomial Fit')
+    # acc_jet, acc_splash =  plot_acceleration(x_values_plot, derivative_poly_function_1, derivative_poly_function_2, 0)
+    # axs[4, 0].plot(x_values_plot, y_values_derivative_1, color='red', label='Velocity Jet')
+    # axs[4, 0].plot(x_values_plot, y_values_derivative_2, color='blue', label='Velocity Splash')
+    # axs[4, 0].set_title('Second Degree Polynomial Fit')
+#     jet_acc.append(acc_jet)
+#     splash_acc.append(acc_splash)
     
     # SD.loc[s, 'angle[degrees]'] = angle
     # SD.loc[s, 'IdealDiam[mm]'] = ideal_diam
