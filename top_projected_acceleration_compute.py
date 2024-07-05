@@ -62,7 +62,7 @@ def read_tiff_images_cv2(TopStack, line_coordinates):
     reslice_jet = []
     reslice_splash = []
     # Iterate through images
-    for file in TopStack[0:20]:
+    for file in TopStack[8:30]:
         # Check if the file is a TIFF image
         # if file.lower().endswith(".tiff") or file.lower().endswith(".tif"):
         # file_path = os.path.join(folder_path, file)
@@ -144,10 +144,14 @@ def read_tiff_images_cv2(TopStack, line_coordinates):
         
         except Exception as e:
             print(f"Error processing {file}: {e}")
-    # drew_line=[x2, y2, x3, y3]
+    # Transpose the reslice images to swap rows and columns
+    # Rotate the reslice images by 90 degrees (clockwise)
+    # Rotate the reslice images by 90 degrees (counterclockwise)
+    # reslice_jet_rotated = list(map(list, zip(*reslice_jet)))[::-1]
+    # reslice_splash_rotated = list(map(list, zip(*reslice_splash)))[::-1]
+    
     reslice = [reslice_jet, reslice_splash]
     
-    # print(angle_jet, angle_splash)
     return all_images, reslice
 
 def onMouse(event, x, y, flags, param):
@@ -416,22 +420,57 @@ def resample_image(image, new_shape):
 
     return resampled_image    
 
-def plot_max_pixel_coords(work_image, plot_image, show = 0):
+def plot_max_pixel_coords_row(work_image, plot_image, show=0):
+    """
+    Plot the coordinates of pixels with maximum value in each row of the image.
+    
+    Args:
+    - work_image: NumPy array representing the grayscale image to analyze
+    - plot_image: NumPy array representing the grayscale image to plot
+    - show: Integer flag to indicate whether to display the plot (1 to display, 0 to not display)
+    
+    Returns:
+    Tuple of lists containing x and y coordinates of the maximum pixels in each row.
+    """
+    # Find maximum pixel coordinates for each row
+    work_image = np.array(work_image)
+    max_pixel_coords = []
+    for row in range(work_image.shape[0]):
+        max_pixel_col = np.argmax(work_image[row, :])  # Find index of maximum pixel value in the row
+        max_pixel_coords.append((row, max_pixel_col))  # Append coordinates to the list
+    
+    if show == 1:
+        # Plot the coordinates on the image
+        plt.figure()
+        plt.imshow(plot_image, cmap='gray')
+        plt.scatter(*zip(*max_pixel_coords), color='red', s=5)  # Unzip coordinates and plot as scatter points
+        plt.title('Pixels with Maximum Value in Each Row')
+        plt.xlabel('Column')
+        plt.ylabel('Row')
+        plt.show()
+    
+    x_coords, y_coords = zip(*max_pixel_coords)
+    return x_coords, y_coords
+def plot_max_pixel_coords_columns(work_image, plot_image, show=0):
     """
     Plot the coordinates of pixels with maximum value in each column of the image.
     
     Args:
-    - image: NumPy array representing the grayscale image
+    - work_image: NumPy array representing the grayscale image to analyze
+    - plot_image: NumPy array representing the grayscale image to plot
+    - show: Integer flag to indicate whether to display the plot (1 to display, 0 to not display)
     
     Returns:
-    None (displays the plot)
+    Tuple of lists containing x and y coordinates of the maximum pixels in each column.
     """
     # Find maximum pixel coordinates for each column
+    work_image = np.array(work_image)
     max_pixel_coords = []
     for col in range(work_image.shape[1]):
         max_pixel_row = np.argmax(work_image[:, col])  # Find index of maximum pixel value in the column
-        max_pixel_coords.append((col, max_pixel_row))  # Append coordinates to the list
-    if show ==1:
+        max_pixel_coords.append((max_pixel_row, col))  # Append coordinates to the list
+    
+    if show == 1:
         # Plot the coordinates on the image
         plt.figure()
         plt.imshow(plot_image, cmap='gray')
@@ -440,6 +479,7 @@ def plot_max_pixel_coords(work_image, plot_image, show = 0):
         plt.xlabel('Column')
         plt.ylabel('Row')
         plt.show()
+    
     x_coords, y_coords = zip(*max_pixel_coords)
     return x_coords, y_coords
 
@@ -587,7 +627,7 @@ def plot_acceleration(x_values_plot, derivative_poly_function_1, derivative_poly
 
         # Show plot
         plt.show()
-    return y_values_second_derivative_1[0], y_values_second_derivative_2[0]
+    return y_values_second_derivative_1, y_values_second_derivative_2
 
 
 def fit_second_degree_polynomial(x, y,title, show_plot=False):
@@ -637,6 +677,53 @@ def fit_second_degree_polynomial(x, y,title, show_plot=False):
         plt.show()
     
     return poly_function_jet, x_values_jet, y_values_jet
+
+def fit_spline(x, y, title, show_plot=False):
+    """
+    Fits a spline to the given data points (x, y).
+
+    Parameters:
+        x (array-like): The x-coordinates of the data points.
+        y (array-like): The y-coordinates of the data points.
+        title (str): The title for the plot.
+        show_plot (bool, optional): Whether to display the plot. Defaults to False.
+
+    Returns:
+        UnivariateSpline: The spline function.
+        numpy.ndarray: The x values for plotting the spline curve.
+        numpy.ndarray: The y values for plotting the spline curve.
+    """
+    # Convert lists to numpy arrays
+    x = np.array(x)
+    y = np.array(y)
+    
+    # Fit the points with a spline
+    spline_function = UnivariateSpline(x, y, s=0)
+    
+    # Generate x values for plotting the spline curve
+    x_values_spline = np.linspace(min(x), max(x), 100)
+    
+    # Evaluate the spline function at the x values
+    y_values_spline = spline_function(x_values_spline)
+    
+    if show_plot:
+        # Plot the points
+        plt.scatter(x, y, color='green', label='Data Points')
+        
+        # Plot the spline curve
+        plt.plot(x_values_spline, y_values_spline, color='blue', label='Spline Fit')
+        
+        # Add labels and legend
+        plt.xlabel('X')
+        plt.ylabel('Y')
+        plt.title(title)
+        plt.legend()
+        
+        # Show plot
+        plt.show()
+    
+    return spline_function, x_values_spline, y_values_spline
+
 def crop_image_with_mouse(image):
     # Resize the image for better viewing
     original_image = copy.deepcopy(image)
@@ -645,7 +732,7 @@ def crop_image_with_mouse(image):
     height = int(image.shape[0] * scale_percent / 100)
     dim = (width, height)
     resized_image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
-    resized_image = image
+    
     # Normalize the resized image
     normalized_image = cv2.normalize(resized_image, dst=None, alpha=0, beta=65535, norm_type=cv2.NORM_MINMAX)
 
@@ -654,6 +741,8 @@ def crop_image_with_mouse(image):
     def onMouse(event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
             posList.append((x, y))
+            if len(posList) == 2:
+                cv2.destroyAllWindows()
 
     # Display the image and wait for mouse clicks
     cv2.namedWindow('image', cv2.WINDOW_NORMAL)
@@ -662,30 +751,49 @@ def crop_image_with_mouse(image):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-    # Convert clicked points to NumPy array
-    posNp = np.array(posList)
-
-    # Check if at least one point was clicked
-    if len(posNp) > 0:
-        # Coordinates of the top-left corner of the region to crop
-        top_left = (0, 0)  
-        # Coordinates of the bottom-right corner of the region to crop
-        bottom_right = posNp[0]  
+    # Check if exactly two points were clicked
+    if len(posList) == 2:
+        # Coordinates of the top-left and bottom-right corners of the region to crop
+        x1, y1 = posList[0]
+        x2, y2 = posList[1]
+        
+        # Ensure top-left and bottom-right order
+        top_left = (min(x1, x2), min(y1, y2))
+        bottom_right = (max(x1, x2), max(y1, y2))
 
         # Crop the image
         cropped_image = normalized_image[top_left[1]:bottom_right[1], top_left[0]:bottom_right[0]]
         return cropped_image
     else:
-        print("No points selected for cropping.")
+        print("Exactly two points must be selected for cropping.")
         return original_image
+def rotate_image(image, angle):
+    """Rotate the image by the given angle."""
+    (h, w) = image.shape[:2]
+    center = (w // 2, h // 2)
+
+    # Rotate the image
+    M = cv2.getRotationMatrix2D(center, angle, 1.0)
+    rotated = cv2.warpAffine(image, M, (w, h))
+    return rotated
+# Function to set axis properties to white and increase font size
+def set_axis_properties(ax):
+    ax.spines['bottom'].set_color('white')
+    ax.spines['top'].set_color('white')
+    ax.spines['right'].set_color('white')
+    ax.spines['left'].set_color('white')
+    ax.xaxis.label.set_color('white')
+    ax.yaxis.label.set_color('white')
+    ax.tick_params(axis='x', colors='white', labelsize=14)  # Increase tick label size
+    ax.tick_params(axis='y', colors='white', labelsize=14)  # Increase tick label size
+    ax.title.set_color('white')
+    ax.title.set_fontsize(16)  # Increase title font size
+    ax.xaxis.label.set_fontsize(14)  # Increase x-axis label font size
+    ax.yaxis.label.set_fontsize(14)  # Increase y-axis label font size
 
 # Specify the folder path containing TIFF images
-<<<<<<< HEAD
-folder_path = r"G:\experiments impact\fluo_new_lenses\SaveData"
 
-=======
-folder_path = r"D:\experiments\experiments internship\5000fps\experiments\30degrees\H103mm_d2.7mm\SaveData"
->>>>>>> 9b8796d0200384ae898b11a9c229d207fae975b2
+folder_path = r"G:\experiments impact\fluo_new_lenses\SaveData"
 
 # Specify experiment details
 scale_pixels = 44
@@ -711,12 +819,17 @@ for stack in StackList[0:1]:
     line_coordinates = []
     extract_line_coord(cv2.normalize(TopStack[20], dst=None, alpha=0, beta=65535, norm_type=cv2.NORM_MINMAX))
     # Step 1: Display TopStack[20]
-    fig, axs = plt.subplots(4, 2, figsize=(18, 12)) # Adjust the grid size as needed
-    
+        
     # Display the initial TopStack image
-    axs[0, 0].imshow(TopStack[20], cmap='gray')
-    axs[0, 0].set_title('Impact image')
-    
+    # plt.figure()
+    # plt.imshow(TopStack[20], cmap='gray')
+    # plt.set_title('Impact image')
+    fig, axs = plt.subplots(2, 2, figsize=(18, 12), facecolor='black') # Adjust the grid size as needed, set figure facecolor
+    # Change the background color of each subplot
+    for ax in axs.flat:
+        ax.set_facecolor('black')
+        set_axis_properties(ax)
+
     # Step 2: Process the images
     list_of_lists_cv2, reslice = read_tiff_images_cv2(TopStack, line_coordinates)
     reslice_jet, reslice_splash = reslice
@@ -734,36 +847,41 @@ for stack in StackList[0:1]:
     
     # Step 5: Derivative of Gaussian
     ks = img.shape[0]  # kernel_size
-    s = 0.01  # sigma
-    derivative_image = convolve_with_derivative_of_gaussian(resampled_img, ks, s)
+    s = 0.001  # sigma
+    derivative_image_jet = convolve_with_derivative_of_gaussian(resampled_img, ks, s)
+    # derivative_image_jet = convolve_with_derivative_of_gaussian(derivative_image_jet, ks, s)
     
     # Display the cropped image
-    axs[0, 1].imshow(img, cmap='gray')
-    axs[0, 1].set_title('Reslice Jet')
+    # axs[0, 1].imshow(img, cmap='gray')
+    # axs[0, 1].set_title('Reslice Jet')
     
     # Step 6: Apply Sobel operator along y-axis
-    sobel_image_y = sobel_y(derivative_image)
+    sobel_image_y_jet = sobel_y(derivative_image_jet)
     
     # Display the derivative image
-    axs[1, 0].imshow(derivative_image, cmap='gray')
-    axs[1, 0].set_title('Convolution with a Derivative of Gaussian')
+    # plt.imshow(derivative_image_jet, cmap='gray')
+    # axs[1, 0].set_title('Convolution with a Derivative of Gaussian')
     
     # Display the Sobel y image
     # axs[1, 1].imshow(sobel_image_y, cmap='gray')
     # axs[1, 1].set_title('Sobel Y Image')
     
     # Step 7: Plot max pixel coordinates
-    x, y = plot_max_pixel_coords(derivative_image, derivative_image, show=0)
+    rotated_filtered_image_jet = list(map(list, zip(*derivative_image_jet)))[::-1]
+    
+    y, x = plot_max_pixel_coords_row(rotated_filtered_image_jet, rotated_filtered_image_jet, show=0)
     # axs[2, 0].imshow(img)
     # axs[2, 0].plot(x, y, 'bo')
     # axs[2, 0].set_title('Max Pixel Coordinates')
     
     # Step 8: Fit and plot second degree polynomial
     poly_function_jet, x_values_jet, y_values_jet = fit_second_degree_polynomial(x, y, "Reslice jet Second Degree Polynomial Fit")
-    axs[1, 1].imshow(img)
-    axs[1, 1].plot(x_values_jet, poly_function_jet(x_values_jet), 'r-')
-    axs[1, 1].plot(x, y, 'bo')
-    axs[1, 1].set_title('Second Degree Polynomial Fit')
+    axs[0, 0].imshow(list(map(list, zip(*reslice_jet)))[::-1], cmap = 'gray')
+    axs[0, 0].plot(x_values_jet, poly_function_jet(x_values_jet), 'r-')
+    axs[0, 0].plot(x, y, 'bo')
+    axs[0, 0].set_title('Reslice Jet')
+    axs[0, 0].set_xlabel('Distance')  # Set your desired X-axis label
+    axs[0, 0].set_ylabel('Time')  # Set your desired Y-axis label
     
     # Adjust layout
     plt.tight_layout()
@@ -775,43 +893,50 @@ for stack in StackList[0:1]:
     cropped_image = crop_image_with_mouse(reslice_splash)
     img =  copy.deepcopy(cropped_image)
     # Display the cropped image
-    axs[2, 0].imshow(img, cmap='gray')
-    axs[2, 0].set_title('Reslice Splash')
+    # axs[2, 0].imshow(img, cmap='gray')
+    # axs[2, 0].set_title('Reslice Splash')
     # Resample image
     new_shape = (img.shape[0]*resample_ratio, img.shape[1]*resample_ratio)
     # resampled_img = resample_image(img, new_shape)
     resampled_img = img
 
     ks = img.shape[0] #kernel_size
-    s = 0.01 #sigma
-    derivative_image =convolve_with_derivative_of_gaussian(resampled_img, ks, s)
+    s = 0.4 #sigma
+    derivative_image_splash =convolve_with_derivative_of_gaussian(resampled_img, ks, s)
     # Display the derivative image
-    axs[2, 1].imshow(derivative_image, cmap='gray')
-    axs[2, 1].set_title('Convolution with a Derivative of Gaussian')
+    # plt.imshow(derivative_image, cmap='gray')
+    # axs[2, 1].set_title('Convolution with a Derivative of Gaussian')
     
     # Apply Sobel operator along y-axis
-    sobel_image_y = sobel_y(derivative_image)
+    sobel_image_y = sobel_y(derivative_image_splash)
     img = copy.deepcopy(sobel_image_y)
+    
+    rotated_filtered_image_splash= list(map(list, zip(*derivative_image_splash)))[::-1]
+
       
-    x, y  = plot_max_pixel_coords(derivative_image, resampled_img, 0)
+    y,x  = plot_max_pixel_coords_columns(rotated_filtered_image_splash, rotated_filtered_image_splash, 0)
     # x = [i*float(scale_mm/scale_pixels) for i in x]
     # y = [i*float(fps) for i in y]
     poly_function_splash, x_values_splash, y_values_splash = fit_second_degree_polynomial(x, y, "Reslice Splash Second Degree Polynomial Fit")
-    axs[3, 0].imshow(img)
-    axs[3, 0].plot(x_values_splash, poly_function_splash(x_values_splash), 'r-')
-    axs[3, 0].plot(x, y, 'bo')
-    axs[3, 0].set_title('Second Degree Polynomial Fit')
+    axs[0, 1].imshow(list(map(list, zip(*reslice_splash)))[::-1], cmap = 'gray')
+    axs[0, 1].plot(x_values_splash, poly_function_splash(x_values_splash), 'r-')
+    axs[0, 1].plot(x, y, 'bo')
+    axs[0, 1].set_title('Reslice Splash')
+    axs[0, 1].set_xlabel('Distance')  # Set your desired X-axis label
+    axs[0, 1].set_ylabel('Time')  # Set your desired Y-axis label
     
 
     
     x_values_plot, y_values_derivative_1, y_values_derivative_2, derivative_poly_function_1, derivative_poly_function_2 = plot_velocity(x_values_jet, y_values_jet, x_values_splash, y_values_splash, 0)
-    axs[3, 1].plot(x_values_plot, y_values_derivative_1, color='red', label='Velocity Jet')
-    axs[3, 1].plot(x_values_plot, y_values_derivative_2, color='blue', label='Velocity Splash')
-    axs[3, 1].set_title('Second Degree Polynomial Fit')
-    # acc_jet, acc_splash =  plot_acceleration(x_values_plot, derivative_poly_function_1, derivative_poly_function_2, 0)
-    # axs[4, 0].plot(x_values_plot, y_values_derivative_1, color='red', label='Velocity Jet')
-    # axs[4, 0].plot(x_values_plot, y_values_derivative_2, color='blue', label='Velocity Splash')
-    # axs[4, 0].set_title('Second Degree Polynomial Fit')
+    axs[1, 0].plot(x_values_plot, y_values_derivative_1, color='yellow', label='Velocity Jet')
+    axs[1, 0].plot(x_values_plot, y_values_derivative_2, color='green', label='Velocity Splash')
+    # axs[1, 0].set_title('Velocities')
+    axs[1, 0].legend()  # This line adds the legend
+    acc_jet, acc_splash =  plot_acceleration(x_values_plot, derivative_poly_function_1, derivative_poly_function_2, 0)
+    axs[1, 1].plot(x_values_plot, acc_jet, color='yellow', label='Acceleration Jet')
+    axs[1, 1].plot(x_values_plot, acc_splash, color='green', label='Acceleration Splash')
+    # axs[1, 1].set_title('Accelerations')
+    axs[1, 1].legend()  # This line adds the legend
 #     jet_acc.append(acc_jet)
 #     splash_acc.append(acc_splash)
     
