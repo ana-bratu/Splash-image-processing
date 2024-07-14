@@ -62,7 +62,7 @@ def read_tiff_images_cv2(TopStack, line_coordinates):
     reslice_jet = []
     reslice_splash = []
     # Iterate through images
-    for file in TopStack[8:30]:
+    for file in TopStack[8:25]:
         # Check if the file is a TIFF image
         # if file.lower().endswith(".tiff") or file.lower().endswith(".tif"):
         # file_path = os.path.join(folder_path, file)
@@ -808,10 +808,12 @@ height = 60
 SD = pd.read_csv(folder_path + '\\SplashData_Cent_ST.csv',index_col = 'Ind')
 
 StackList = SD.index  
+jet_initial_velocity = []
+splash_initial_velocity = []
 jet_acc = []
 splash_acc = []
 Circularity = []
-for stack in StackList[0:1]:
+for stack in StackList[0:5]:
 
     _, TopStack = cv2.imreadmulti(folder_path + '\\Top_' + stack + '.tif', [], -1 )
     # count = 6
@@ -870,6 +872,9 @@ for stack in StackList[0:1]:
     rotated_filtered_image_jet = list(map(list, zip(*derivative_image_jet)))[::-1]
     
     y, x = plot_max_pixel_coords_row(rotated_filtered_image_jet, rotated_filtered_image_jet, show=0)
+      y = [max(y) - i for i in y]
+    # y = [i*scale_mm/scale_pixels for i in y]
+    # x = [j/fps for j in x]
     # axs[2, 0].imshow(img)
     # axs[2, 0].plot(x, y, 'bo')
     # axs[2, 0].set_title('Max Pixel Coordinates')
@@ -888,63 +893,66 @@ for stack in StackList[0:1]:
     plt.show()
     
     
-# SPLASH
-    reslice_splash =  np.array(reslice_splash, dtype=np.uint16)
-    cropped_image = crop_image_with_mouse(reslice_splash)
-    img =  copy.deepcopy(cropped_image)
-    # Display the cropped image
-    # axs[2, 0].imshow(img, cmap='gray')
-    # axs[2, 0].set_title('Reslice Splash')
-    # Resample image
-    new_shape = (img.shape[0]*resample_ratio, img.shape[1]*resample_ratio)
-    # resampled_img = resample_image(img, new_shape)
-    resampled_img = img
+# # SPLASH
+#     reslice_splash =  np.array(reslice_splash, dtype=np.uint16)
+#     cropped_image = crop_image_with_mouse(reslice_splash)
+#     img =  copy.deepcopy(cropped_image)
+#     # Display the cropped image
+#     # axs[2, 0].imshow(img, cmap='gray')
+#     # axs[2, 0].set_title('Reslice Splash')
+#     # Resample image
+#     new_shape = (img.shape[0]*resample_ratio, img.shape[1]*resample_ratio)
+#     # resampled_img = resample_image(img, new_shape)
+#     resampled_img = img
 
-    ks = img.shape[0] #kernel_size
-    s = 0.4 #sigma
-    derivative_image_splash =convolve_with_derivative_of_gaussian(resampled_img, ks, s)
-    # Display the derivative image
-    # plt.imshow(derivative_image, cmap='gray')
-    # axs[2, 1].set_title('Convolution with a Derivative of Gaussian')
     
-    # Apply Sobel operator along y-axis
-    sobel_image_y = sobel_y(derivative_image_splash)
-    img = copy.deepcopy(sobel_image_y)
+#     rotated_filtered_image_splash= np.array(list(map(list, zip(*img)))[::-1])
+
+#     ks = img.shape[0] #kernel_size
+#     s = 0.4 #sigma
+#     derivative_image_splash =convolve_with_derivative_of_gaussian(rotated_filtered_image_splash, ks, s)
+#     # Display the derivative image
+#     # plt.imshow(derivative_image, cmap='gray')
+#     # axs[2, 1].set_title('Convolution with a Derivative of Gaussian')
     
-    rotated_filtered_image_splash= list(map(list, zip(*derivative_image_splash)))[::-1]
+#     # Apply Sobel operator along y-axis
+#     sobel_image_y_splash = sobel_y(derivative_image_splash)
 
       
-    y,x  = plot_max_pixel_coords_columns(rotated_filtered_image_splash, rotated_filtered_image_splash, 0)
-    # x = [i*float(scale_mm/scale_pixels) for i in x]
-    # y = [i*float(fps) for i in y]
-    poly_function_splash, x_values_splash, y_values_splash = fit_second_degree_polynomial(x, y, "Reslice Splash Second Degree Polynomial Fit")
-    axs[0, 1].imshow(list(map(list, zip(*reslice_splash)))[::-1], cmap = 'gray')
-    axs[0, 1].plot(x_values_splash, poly_function_splash(x_values_splash), 'r-')
-    axs[0, 1].plot(x, y, 'bo')
-    axs[0, 1].set_title('Reslice Splash')
-    axs[0, 1].set_xlabel('Distance')  # Set your desired X-axis label
-    axs[0, 1].set_ylabel('Time')  # Set your desired Y-axis label
+#     y,x  = plot_max_pixel_coords_columns(derivative_image_splash, rotated_filtered_image_splash, 0)
+#     # x = [i*float(scale_mm/scale_pixels) for i in x]
+#     # y = [i*float(fps) for i in y]
+#     poly_function_splash, x_values_splash, y_values_splash = fit_second_degree_polynomial(x, y, "Reslice Splash Second Degree Polynomial Fit")
+#     axs[0, 1].imshow(list(map(list, zip(*img)))[::-1], cmap = 'gray')
+#     axs[0, 1].plot(x_values_splash, poly_function_splash(x_values_splash), 'r-')
+#     axs[0, 1].plot(x, y, 'bo')
+#     axs[0, 1].set_title('Reslice Splash')
+#     axs[0, 1].set_xlabel('Distance')  # Set your desired X-axis label
+#     axs[0, 1].set_ylabel('Time')  # Set your desired Y-axis label
     
 
     
-    x_values_plot, y_values_derivative_1, y_values_derivative_2, derivative_poly_function_1, derivative_poly_function_2 = plot_velocity(x_values_jet, y_values_jet, x_values_splash, y_values_splash, 0)
-    axs[1, 0].plot(x_values_plot, y_values_derivative_1, color='yellow', label='Velocity Jet')
-    axs[1, 0].plot(x_values_plot, y_values_derivative_2, color='green', label='Velocity Splash')
-    # axs[1, 0].set_title('Velocities')
-    axs[1, 0].legend()  # This line adds the legend
-    acc_jet, acc_splash =  plot_acceleration(x_values_plot, derivative_poly_function_1, derivative_poly_function_2, 0)
-    axs[1, 1].plot(x_values_plot, acc_jet, color='yellow', label='Acceleration Jet')
-    axs[1, 1].plot(x_values_plot, acc_splash, color='green', label='Acceleration Splash')
-    # axs[1, 1].set_title('Accelerations')
-    axs[1, 1].legend()  # This line adds the legend
-#     jet_acc.append(acc_jet)
-#     splash_acc.append(acc_splash)
+#     x_values_plot, y_values_derivative_1, y_values_derivative_2, derivative_poly_function_1, derivative_poly_function_2 = plot_velocity(x_values_jet, y_values_jet, x_values_splash, y_values_splash, 0)
+#     axs[1, 0].plot(x_values_plot, y_values_derivative_1, color='yellow', label='Velocity Jet')
+#     axs[1, 0].plot(x_values_plot, y_values_derivative_2, color='green', label='Velocity Splash')
+#     # axs[1, 0].set_title('Velocities')
+#     axs[1, 0].legend()  # This line adds the legend
+#     acc_jet, acc_splash =  plot_acceleration(x_values_plot, derivative_poly_function_1, derivative_poly_function_2, 0)
+#     axs[1, 1].plot(x_values_plot, acc_jet, color='yellow', label='Acceleration Jet')
+#     axs[1, 1].plot(x_values_plot, acc_splash, color='green', label='Acceleration Splash')
+#     # axs[1, 1].set_title('Accelerations')
+#     axs[1, 1].legend()  # This line adds the legend
     
-    # SD.loc[s, 'angle[degrees]'] = angle
-    # SD.loc[s, 'IdealDiam[mm]'] = ideal_diam
-    # SD.loc[s, 'Height[cm]'] = height
-    # SD.loc[s,'Top Velocity jet'] = velocity_jet
-    # SD.loc[s,'Top Velocity splash'] = velocity_splash
-    # SD.loc[s,'Acc splash'] = splash_acc
-    # SD.loc[s,'Acc jet'] =jet_acc
-    # # SD.to_csv(folder_path + '\\SplashData_Cent_ST.csv',index_label = 'Ind')
+#     jet_initial_velocity.append(y_values_derivative_1[0])
+#     splash_initial_velocity.append(y_values_derivative_2[0])
+#     jet_acc.append(acc_jet[0])
+#     splash_acc.append(acc_splash[0])
+    
+#     # SD.loc[s, 'angle[degrees]'] = angle
+#     # SD.loc[s, 'IdealDiam[mm]'] = ideal_diam
+#     # SD.loc[s, 'Height[cm]'] = height
+#     # SD.loc[s,'Top Velocity jet'] = velocity_jet
+#     # SD.loc[s,'Top Velocity splash'] = velocity_splash
+#     # SD.loc[s,'Acc splash'] = splash_acc
+#     # SD.loc[s,'Acc jet'] =jet_acc
+#     # # SD.to_csv(folder_path + '\\SplashData_Cent_ST.csv',index_label = 'Ind')
