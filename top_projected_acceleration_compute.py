@@ -873,6 +873,7 @@ for stack in StackList[0:5]:
     
     y, x = plot_max_pixel_coords_row(rotated_filtered_image_jet, rotated_filtered_image_jet, show=0)
       y = [max(y) - i for i in y]
+    y = [max(y) - i for i in y]
     # y = [i*scale_mm/scale_pixels for i in y]
     # x = [j/fps for j in x]
     # axs[2, 0].imshow(img)
